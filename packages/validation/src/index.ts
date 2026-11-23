@@ -5,6 +5,9 @@ import {
   ContractStandard,
   ProjectStatus,
   UserRole,
+  OrganizationRole,
+  MembershipStatus,
+  InvitationStatus,
   OrganizationStatus,
 } from '@buildmind/shared-types';
 
@@ -35,6 +38,10 @@ export const passwordSchema = z
 // 2. Organization Schemas
 // ==========================================
 
+export const organizationRoleSchema = z.nativeEnum(OrganizationRole);
+export const membershipStatusSchema = z.nativeEnum(MembershipStatus);
+export const invitationStatusSchema = z.nativeEnum(InvitationStatus);
+
 export const createOrganizationSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters').max(100),
   slug: z
@@ -48,6 +55,28 @@ export const createOrganizationSchema = z.object({
 
 export const updateOrganizationSchema = createOrganizationSchema.partial().extend({
   status: z.nativeEnum(OrganizationStatus).optional(),
+  settings: z.record(z.any()).optional(),
+});
+
+export const inviteMemberSchema = z.object({
+  email: z.string().email('Must be a valid email address').toLowerCase().trim(),
+  role: z.nativeEnum(OrganizationRole).default(OrganizationRole.QS_ENGINEER),
+});
+
+export const updateMemberRoleSchema = z.object({
+  role: z.nativeEnum(OrganizationRole),
+});
+
+export const updateMemberStatusSchema = z.object({
+  status: z.nativeEnum(MembershipStatus),
+});
+
+export const transferOwnershipSchema = z.object({
+  newOwnerUserId: uuidSchema,
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(16, 'Invitation token is required'),
 });
 
 // ==========================================
@@ -99,12 +128,12 @@ export const resendVerificationSchema = z.object({
 // ==========================================
 
 export const createProjectSchema = z.object({
-  organizationId: uuidSchema,
+  organizationId: uuidSchema.optional(),
   code: z
     .string()
     .min(2, 'Project code must be at least 2 characters')
     .max(20)
-    .regex(/^[A-Z0-9_-]+$/, 'Project code must be uppercase alphanumeric with dashes/underscores'),
+    .regex(/^[A-Za-z0-9_-]+$/, 'Project code must be alphanumeric with dashes or underscores'),
   name: z.string().min(2, 'Project name must be at least 2 characters').max(150),
   description: z.string().max(1000).optional(),
   country: z.string().length(2).default('LK'),
@@ -116,12 +145,23 @@ export const createProjectSchema = z.object({
 
 export const updateProjectSchema = createProjectSchema.partial().omit({ organizationId: true });
 
+export const addProjectMemberSchema = z.object({
+  userId: uuidSchema,
+  role: z.string().max(50).optional(),
+});
+
 // ==========================================
 // 5. Schema Inferred Types
 // ==========================================
 
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
+export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type UpdateMemberStatusInput = z.infer<typeof updateMemberStatusSchema>;
+export type TransferOwnershipInput = z.infer<typeof transferOwnershipSchema>;
+export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;
+export type AddProjectMemberInput = z.infer<typeof addProjectMemberSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;

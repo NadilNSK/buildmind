@@ -28,6 +28,8 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   auditEvents             AuthAuditEvent[]
+  sentInvitations         OrganizationInvitation[] @relation("SentInvitations")
+  projectMembers          ProjectMember[]
 
   @@index([email])
   @@index([role])
@@ -127,11 +129,13 @@ model Organization {
   country         String       @default("LK") // ISO 3166-1 alpha-2 (Default Sri Lanka)
   currency        String       @default("LKR") // Default Currency LKR
   status          String       @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
+  settings        Json?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   memberships Membership[]
   projects    Project[]
+  invitations OrganizationInvitation[]
 
   @@index([slug])
   @@index([status])
@@ -145,7 +149,8 @@ model Membership {
   id             String       @id @default(uuid())
   userId         String
   organizationId String
-  role           String       @default("QS_ENGINEER")
+  role           String       @default("QS_ENGINEER") // OrganizationRole enum
+  status         String       @default("ACTIVE") // ACTIVE, SUSPENDED
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -155,6 +160,8 @@ model Membership {
   @@unique([userId, organizationId])
   @@index([userId])
   @@index([organizationId])
+  @@index([role])
+  @@index([status])
   @@map("memberships")
 }
 
@@ -178,6 +185,7 @@ model Project {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User         @relation("CreatedProjects", fields: [createdById], references: [id], onDelete: Restrict)
+  members      ProjectMember[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -185,4 +193,51 @@ model Project {
   @@index([status])
   @@index([standard])
   @@map("projects")
+}
+
+// ==========================================
+// Organization Invitation
+// ==========================================
+model OrganizationInvitation {
+  id             String       @id @default(uuid())
+  organizationId String
+  email          String
+  role           String       @default("QS_ENGINEER")
+  tokenHash      String       @unique
+  invitedById    String
+  status         String       @default("PENDING") // PENDING, ACCEPTED, REVOKED, EXPIRED
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([tokenHash])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("organization_invitations")
+}
+
+// ==========================================
+// Project Member (Project access grant)
+// ==========================================
+model ProjectMember {
+  id         String   @id @default(uuid())
+  projectId  String
+  userId     String
+  role       String?  // Optional project-level override role
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
 }

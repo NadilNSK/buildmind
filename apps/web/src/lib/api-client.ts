@@ -62,6 +62,16 @@ export async function apiClient<T>(
     ...(options.headers as Record<string, string>),
   };
 
+  // Attach active organization context header if present in cookie or storage
+  if (typeof document !== 'undefined' && !headers['x-organization-id']) {
+    const activeOrgId =
+      getCookie('buildmind_org_id') ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('buildmind_active_org_id') : null);
+    if (activeOrgId) {
+      headers['x-organization-id'] = activeOrgId;
+    }
+  }
+
   // Double-submit CSRF cookie support for state-changing browser requests
   const method = (options.method || 'GET').toUpperCase();
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && typeof document !== 'undefined') {

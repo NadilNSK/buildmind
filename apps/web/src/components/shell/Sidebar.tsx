@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   FolderKanban,
+  Building2,
+  Users,
   Ruler,
   Calculator,
   FileSpreadsheet,
@@ -44,6 +46,7 @@ const navSections: NavSection[] = [
     title: 'Platform Overview',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, code: 'CORE', phase: 1 },
+      { name: 'Organizations', href: '/organizations', icon: Building2, code: 'ORG', phase: 2 },
       { name: 'Projects', href: '/projects', icon: FolderKanban, code: 'CORE', phase: 1 },
     ],
   },

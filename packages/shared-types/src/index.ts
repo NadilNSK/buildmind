@@ -57,10 +57,340 @@ export enum UserRole {
   VIEWER = 'VIEWER',
 }
 
+export enum OrganizationRole {
+  ORGANIZATION_OWNER = 'ORGANIZATION_OWNER',
+  ORGANIZATION_ADMIN = 'ORGANIZATION_ADMIN',
+  COMMERCIAL_DIRECTOR = 'COMMERCIAL_DIRECTOR',
+  SENIOR_QS = 'SENIOR_QS',
+  QS_ENGINEER = 'QS_ENGINEER',
+  ESTIMATOR = 'ESTIMATOR',
+  PROJECT_MANAGER = 'PROJECT_MANAGER',
+  AUDITOR = 'AUDITOR',
+  VIEWER = 'VIEWER',
+}
+
+export enum MembershipStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum InvitationStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  REVOKED = 'REVOKED',
+  EXPIRED = 'EXPIRED',
+}
+
 export enum OrganizationStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
   PENDING_VERIFICATION = 'PENDING_VERIFICATION',
+}
+
+// ==========================================
+// 2b. RBAC Permission Registry & Matrix
+// ==========================================
+
+export type PermissionKey =
+  | 'organization.view'
+  | 'organization.update'
+  | 'organization.delete'
+  | 'organization.manage_members'
+  | 'organization.transfer_ownership'
+  | 'organization.manage_billing'
+  | 'projects.create'
+  | 'projects.view'
+  | 'projects.update'
+  | 'projects.delete'
+  | 'projects.manage_access'
+  | 'drawings.view'
+  | 'drawings.upload'
+  | 'drawings.update'
+  | 'drawings.delete'
+  | 'takeoff.view'
+  | 'takeoff.create'
+  | 'takeoff.update'
+  | 'takeoff.delete'
+  | 'takeoff.approve'
+  | 'estimates.view'
+  | 'estimates.create'
+  | 'estimates.update'
+  | 'estimates.delete'
+  | 'estimates.approve'
+  | 'boq.view'
+  | 'boq.create'
+  | 'boq.update'
+  | 'boq.delete'
+  | 'boq.export'
+  | 'boq.lock'
+  | 'budgets.view'
+  | 'budgets.create'
+  | 'budgets.update'
+  | 'budgets.delete'
+  | 'budgets.approve'
+  | 'tenders.view'
+  | 'tenders.create'
+  | 'tenders.update'
+  | 'tenders.delete'
+  | 'tenders.evaluate'
+  | 'contracts.view'
+  | 'contracts.create'
+  | 'contracts.update'
+  | 'contracts.delete'
+  | 'contracts.administer'
+  | 'procurement.view'
+  | 'procurement.create'
+  | 'procurement.update'
+  | 'procurement.manage'
+  | 'valuations.view'
+  | 'valuations.create'
+  | 'valuations.certify'
+  | 'variations.view'
+  | 'variations.create'
+  | 'variations.approve'
+  | 'reports.view'
+  | 'reports.export'
+  | 'audit.view'
+  | 'audit.export';
+
+export const ALL_PERMISSIONS: PermissionKey[] = [
+  'organization.view',
+  'organization.update',
+  'organization.delete',
+  'organization.manage_members',
+  'organization.transfer_ownership',
+  'organization.manage_billing',
+  'projects.create',
+  'projects.view',
+  'projects.update',
+  'projects.delete',
+  'projects.manage_access',
+  'drawings.view',
+  'drawings.upload',
+  'drawings.update',
+  'drawings.delete',
+  'takeoff.view',
+  'takeoff.create',
+  'takeoff.update',
+  'takeoff.delete',
+  'takeoff.approve',
+  'estimates.view',
+  'estimates.create',
+  'estimates.update',
+  'estimates.delete',
+  'estimates.approve',
+  'boq.view',
+  'boq.create',
+  'boq.update',
+  'boq.delete',
+  'boq.export',
+  'boq.lock',
+  'budgets.view',
+  'budgets.create',
+  'budgets.update',
+  'budgets.delete',
+  'budgets.approve',
+  'tenders.view',
+  'tenders.create',
+  'tenders.update',
+  'tenders.delete',
+  'tenders.evaluate',
+  'contracts.view',
+  'contracts.create',
+  'contracts.update',
+  'contracts.delete',
+  'contracts.administer',
+  'procurement.view',
+  'procurement.create',
+  'procurement.update',
+  'procurement.manage',
+  'valuations.view',
+  'valuations.create',
+  'valuations.certify',
+  'variations.view',
+  'variations.create',
+  'variations.approve',
+  'reports.view',
+  'reports.export',
+  'audit.view',
+  'audit.export',
+];
+
+export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]> = {
+  [OrganizationRole.ORGANIZATION_OWNER]: ALL_PERMISSIONS,
+  [OrganizationRole.ORGANIZATION_ADMIN]: ALL_PERMISSIONS.filter(
+    (p) => p !== 'organization.delete' && p !== 'organization.transfer_ownership',
+  ),
+  [OrganizationRole.COMMERCIAL_DIRECTOR]: [
+    'organization.view',
+    'projects.create',
+    'projects.view',
+    'projects.update',
+    'projects.manage_access',
+    'drawings.view',
+    'drawings.upload',
+    'takeoff.view',
+    'takeoff.approve',
+    'estimates.view',
+    'estimates.approve',
+    'boq.view',
+    'boq.export',
+    'boq.lock',
+    'budgets.view',
+    'budgets.create',
+    'budgets.update',
+    'budgets.approve',
+    'tenders.view',
+    'tenders.create',
+    'tenders.update',
+    'tenders.evaluate',
+    'contracts.view',
+    'contracts.create',
+    'contracts.update',
+    'contracts.administer',
+    'procurement.view',
+    'procurement.manage',
+    'valuations.view',
+    'valuations.certify',
+    'variations.view',
+    'variations.approve',
+    'reports.view',
+    'reports.export',
+    'audit.view',
+  ],
+  [OrganizationRole.SENIOR_QS]: [
+    'organization.view',
+    'projects.view',
+    'projects.update',
+    'drawings.view',
+    'drawings.upload',
+    'drawings.update',
+    'takeoff.view',
+    'takeoff.create',
+    'takeoff.update',
+    'takeoff.approve',
+    'estimates.view',
+    'estimates.create',
+    'estimates.update',
+    'boq.view',
+    'boq.create',
+    'boq.update',
+    'boq.export',
+    'budgets.view',
+    'budgets.create',
+    'budgets.update',
+    'tenders.view',
+    'tenders.create',
+    'tenders.evaluate',
+    'contracts.view',
+    'procurement.view',
+    'procurement.create',
+    'valuations.view',
+    'valuations.create',
+    'variations.view',
+    'variations.create',
+    'reports.view',
+    'reports.export',
+    'audit.view',
+  ],
+  [OrganizationRole.QS_ENGINEER]: [
+    'organization.view',
+    'projects.view',
+    'drawings.view',
+    'drawings.upload',
+    'takeoff.view',
+    'takeoff.create',
+    'takeoff.update',
+    'estimates.view',
+    'estimates.create',
+    'estimates.update',
+    'boq.view',
+    'boq.create',
+    'boq.update',
+    'boq.export',
+    'budgets.view',
+    'tenders.view',
+    'contracts.view',
+    'procurement.view',
+    'valuations.view',
+    'valuations.create',
+    'variations.view',
+    'variations.create',
+    'reports.view',
+  ],
+  [OrganizationRole.ESTIMATOR]: [
+    'organization.view',
+    'projects.view',
+    'drawings.view',
+    'takeoff.view',
+    'takeoff.create',
+    'takeoff.update',
+    'estimates.view',
+    'estimates.create',
+    'estimates.update',
+    'boq.view',
+    'boq.create',
+    'boq.update',
+    'boq.export',
+    'budgets.view',
+    'reports.view',
+  ],
+  [OrganizationRole.PROJECT_MANAGER]: [
+    'organization.view',
+    'projects.create',
+    'projects.view',
+    'projects.update',
+    'projects.manage_access',
+    'drawings.view',
+    'drawings.upload',
+    'drawings.update',
+    'takeoff.view',
+    'estimates.view',
+    'boq.view',
+    'budgets.view',
+    'budgets.update',
+    'tenders.view',
+    'contracts.view',
+    'contracts.update',
+    'procurement.view',
+    'procurement.create',
+    'procurement.manage',
+    'valuations.view',
+    'variations.view',
+    'variations.create',
+    'reports.view',
+    'reports.export',
+  ],
+  [OrganizationRole.AUDITOR]: [
+    'organization.view',
+    'projects.view',
+    'drawings.view',
+    'takeoff.view',
+    'estimates.view',
+    'boq.view',
+    'budgets.view',
+    'tenders.view',
+    'contracts.view',
+    'procurement.view',
+    'valuations.view',
+    'variations.view',
+    'reports.view',
+    'reports.export',
+    'audit.view',
+    'audit.export',
+  ],
+  [OrganizationRole.VIEWER]: [
+    'organization.view',
+    'projects.view',
+    'drawings.view',
+    'reports.view',
+  ],
+};
+
+export function hasPermission(role: OrganizationRole | string, permission: PermissionKey): boolean {
+  const allowed = ROLE_PERMISSIONS[role as OrganizationRole];
+  if (!allowed) return false;
+  return allowed.includes(permission);
 }
 
 export enum AccountStatus {
@@ -104,17 +434,135 @@ export interface OrganizationSummary {
   country: string;
   defaultCurrency: CurrencyCode;
   status: OrganizationStatus;
+  settings?: Record<string, any> | null;
   createdAt: string;
   updatedAt: string;
+  currentUserRole?: OrganizationRole;
+  memberCount?: number;
+  projectCount?: number;
 }
 
 export interface MembershipSummary {
   id: string;
   userId: string;
   organizationId: string;
-  role: UserRole;
+  role: OrganizationRole;
+  status: MembershipStatus;
   createdAt: string;
   updatedAt: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+}
+
+export interface OrganizationMemberSummary {
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: OrganizationRole;
+  status: MembershipStatus;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+}
+
+export interface OrganizationInvitationSummary {
+  id: string;
+  organizationId: string;
+  email: string;
+  role: OrganizationRole;
+  status: InvitationStatus;
+  invitedById: string;
+  invitedBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  expiresAt: string;
+  acceptedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ProjectMemberSummary {
+  id: string;
+  projectId: string;
+  userId: string;
+  role?: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+}
+
+export interface CreateOrganizationDto {
+  name: string;
+  slug: string;
+  country?: string;
+  defaultCurrency?: CurrencyCode;
+}
+
+export interface UpdateOrganizationDto {
+  name?: string;
+  slug?: string;
+  country?: string;
+  defaultCurrency?: CurrencyCode;
+  status?: OrganizationStatus;
+  settings?: Record<string, any>;
+}
+
+export interface InviteMemberDto {
+  email: string;
+  role: OrganizationRole;
+}
+
+export interface UpdateMemberRoleDto {
+  role: OrganizationRole;
+}
+
+export interface UpdateMemberStatusDto {
+  status: MembershipStatus;
+}
+
+export interface TransferOwnershipDto {
+  newOwnerUserId: string;
+}
+
+export interface AcceptInvitationDto {
+  token: string;
+}
+
+export interface CreateProjectDto {
+  code: string;
+  name: string;
+  description?: string;
+  country?: string;
+  measurementStandard?: MeasurementStandard;
+  contractStandard?: ContractStandard;
+  currency?: CurrencyCode;
+  status?: ProjectStatus;
+}
+
+export interface UpdateProjectDto {
+  name?: string;
+  description?: string;
+  country?: string;
+  measurementStandard?: MeasurementStandard;
+  contractStandard?: ContractStandard;
+  currency?: CurrencyCode;
+  status?: ProjectStatus;
+}
+
+export interface AddProjectMemberDto {
+  userId: string;
+  role?: string;
 }
 
 export interface ProjectSummary {
