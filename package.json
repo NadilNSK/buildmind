@@ -1,0 +1,27 @@
+{
+  "name": "buildmind-ai-monorepo",
+  "version": "5.0.0",
+  "private": true,
+  "description": "Enterprise-grade SaaS for AI-assisted Quantity Surveying & Commercial Management",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" run build",
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "dev:web": "pnpm --filter @buildmind/web run dev",
+    "dev:api": "pnpm --filter @buildmind/api run start:dev",
+    "lint": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" run lint",
+    "type-check": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" run type-check",
+    "test": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" run test",
+    "db:generate": "pnpm --filter @buildmind/database run generate",
+    "db:migrate": "pnpm --filter @buildmind/database run migrate",
+    "clean": "pnpm -r exec rimraf dist .next .turbo node_modules"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}

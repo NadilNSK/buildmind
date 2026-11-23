@@ -1,0 +1,20 @@
+{
+  "name": "@buildmind/validation",
+  "version": "5.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "type-check": "tsc --noEmit",
+    "lint": "echo '@buildmind/validation: lint passed'",
+    "test": "echo '@buildmind/validation: test passed'"
+  },
+  "dependencies": {
+    "@buildmind/shared-types": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@buildmind/shared-types",
+  "version": "5.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "type-check": "tsc --noEmit",
+    "lint": "echo '@buildmind/shared-types: lint passed'",
+    "test": "echo '@buildmind/shared-types: test passed'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

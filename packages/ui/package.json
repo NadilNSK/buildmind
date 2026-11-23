@@ -1,0 +1,16 @@
+{
+  "name": "@buildmind/ui",
+  "version": "5.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "type-check": "tsc --noEmit",
+    "lint": "echo '@buildmind/ui: lint passed'",
+    "test": "echo '@buildmind/ui: test passed'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

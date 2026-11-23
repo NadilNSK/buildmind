@@ -1,0 +1,12 @@
+{
+  "name": "@buildmind/config",
+  "version": "5.0.0",
+  "private": true,
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "scripts": {
+    "lint": "echo '@buildmind/config: no lint needed'",
+    "type-check": "echo '@buildmind/config: no type-check needed'",
+    "test": "echo '@buildmind/config: no tests needed'"
+  }
+}
