@@ -73,16 +73,28 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 text-xs text-[#94A3B8]">
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2 text-xs text-[#94A3B8] mr-2">
             <span className="w-2 h-2 rounded-full bg-[#14B8A6]"></span>
             <span>Target Market: Sri Lanka (SLS 573 / CIDA) & Global</span>
           </div>
           <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#14B8A6] hover:bg-[#0D9488] text-white text-xs font-semibold shadow-md shadow-[#14B8A6]/20 transition-all"
+            href="/login"
+            className="px-3.5 py-1.5 rounded-lg border border-[#1E2E4E] hover:border-[#14B8A6]/50 bg-[#111C35] hover:bg-[#182745] text-[#CBD5E1] text-xs font-medium transition-colors"
           >
-            Launch Workspace <ArrowRight className="w-3.5 h-3.5" />
+            Sign In
+          </Link>
+          <Link
+            href="/register"
+            className="px-3.5 py-1.5 rounded-lg border border-[#14B8A6]/40 bg-[#14B8A6]/10 hover:bg-[#14B8A6]/20 text-[#14B8A6] text-xs font-semibold transition-colors"
+          >
+            Register
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#14B8A6] hover:bg-[#0D9488] text-[#0B1220] text-xs font-semibold shadow-md shadow-[#14B8A6]/20 transition-all"
+          >
+            Workspace <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </nav>

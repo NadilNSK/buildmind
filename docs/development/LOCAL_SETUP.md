@@ -138,3 +138,24 @@ cd services/ai-worker && python tests/smoke_test.py
 # Run Next.js production build
 pnpm --filter @buildmind/web run build
 ```
+
+
+---
+
+## 7. Phase 2B Authentication Frontend Verification & Testing
+
+### 7.1 Running the Frontend E2E & Browser Auth Test Suite
+The automated Phase 2B test suite verifies all 17 security and UI requirements against a live PostgreSQL database and NestJS backend instance:
+
+```powershell
+# Run the 17-scenario frontend & browser security verification suite
+pnpm --filter @buildmind/web test
+```
+
+### 7.2 Verified Authentication Flows & Endpoints
+- **Sign In**: `/login` (supports remembered email, HttpOnly cookie generation, sanitized `returnUrl` redirection)
+- **Sign Up**: `/register` (Zod schema validation, live password requirements indicator, email verification token creation)
+- **Password Recovery**: `/forgot-password` and `/reset-password?token=...`
+- **Email Verification**: `/verify-email?token=...` and `/resend-verification`
+- **User Settings**: `/settings/profile` and `/settings/security` (password changes, single device logout, all devices revocation)
+- **Route Guarding**: Next.js `middleware.ts` guarding `/dashboard`, `/projects`, `/takeoff`, etc.

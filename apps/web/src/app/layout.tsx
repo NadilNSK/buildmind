@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AuthProvider } from '../context/auth-context';
 
 export const metadata: Metadata = {
   title: 'BuildMind AI v5.0 — Enterprise Quantity Surveying & Commercial Management',
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-[#0B1220] text-[#F8FAFC] antialiased">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

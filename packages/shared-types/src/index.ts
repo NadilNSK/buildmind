@@ -63,12 +63,36 @@ export enum OrganizationStatus {
   PENDING_VERIFICATION = 'PENDING_VERIFICATION',
 }
 
+export enum AccountStatus {
+  ACTIVE = 'ACTIVE',
+  SUSPENDED = 'SUSPENDED',
+  PENDING_VERIFICATION = 'PENDING_VERIFICATION',
+}
+
+export enum AuthAuditEventType {
+  REGISTER_SUCCESS = 'REGISTER_SUCCESS',
+  LOGIN_SUCCESS = 'LOGIN_SUCCESS',
+  LOGIN_FAILED = 'LOGIN_FAILED',
+  LOGOUT = 'LOGOUT',
+  LOGOUT_ALL = 'LOGOUT_ALL',
+  REFRESH_SUCCESS = 'REFRESH_SUCCESS',
+  REFRESH_REUSE_DETECTED = 'REFRESH_REUSE_DETECTED',
+  PASSWORD_CHANGE = 'PASSWORD_CHANGE',
+  PASSWORD_RESET_REQUESTED = 'PASSWORD_RESET_REQUESTED',
+  PASSWORD_RESET_COMPLETED = 'PASSWORD_RESET_COMPLETED',
+  EMAIL_VERIFICATION_REQUESTED = 'EMAIL_VERIFICATION_REQUESTED',
+  EMAIL_VERIFIED = 'EMAIL_VERIFIED',
+  ACCOUNT_LOCKED = 'ACCOUNT_LOCKED',
+}
+
 export interface UserSummary {
   id: string;
   email: string;
   fullName: string;
   role: UserRole;
   isActive: boolean;
+  isEmailVerified: boolean;
+  accountStatus: AccountStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -110,7 +134,81 @@ export interface ProjectSummary {
 }
 
 // ==========================================
-// 3. Approved 24 Capabilities Catalog
+// 3. Authentication DTOs & Contracts
+// ==========================================
+
+export interface JwtPayload {
+  sub: string;       // User UUID
+  email: string;     // User Email
+  role: UserRole;    // System Role
+  sessionId?: string; // Associated Session UUID
+  type?: 'access' | 'refresh';
+  iat?: number;
+  exp?: number;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken?: string;
+  tokenType: 'Bearer';
+  expiresIn: number; // in seconds
+}
+
+export interface AuthResponse {
+  user: UserSummary;
+  tokens: AuthTokens;
+  message?: string;
+}
+
+export interface RegisterDto {
+  email: string;
+  fullName: string;
+  password: string;
+  role?: UserRole;
+}
+
+export interface LoginDto {
+  email: string;
+  password: string;
+}
+
+export interface RefreshTokenDto {
+  refreshToken?: string;
+}
+
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ForgotPasswordDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  token: string;
+  newPassword: string;
+}
+
+export interface VerifyEmailDto {
+  token: string;
+}
+
+export interface ResendVerificationDto {
+  email: string;
+}
+
+export interface UserSessionSummary {
+  id: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+  createdAt: string;
+  expiresAt: string;
+  isCurrent?: boolean;
+}
+
+// ==========================================
+// 4. Approved 24 Capabilities Catalog
 // ==========================================
 
 export enum QSModuleId {
@@ -157,7 +255,7 @@ export interface CapabilityMeta {
 }
 
 // ==========================================
-// 4. API Request / Response Protocols
+// 5. API Request / Response Protocols
 // ==========================================
 
 export interface ApiResponse<T> {

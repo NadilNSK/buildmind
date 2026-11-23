@@ -22,6 +22,8 @@ import {
   Box,
   Bot,
   Compass,
+  User,
+  Lock,
 } from 'lucide-react';
 
 interface NavItem {
@@ -73,6 +75,13 @@ const navSections: NavSection[] = [
       { name: 'Drawing Viewer', href: '/drawing-viewer', icon: Layers, code: 'ES-04', phase: 2 },
       { name: '3D BIM Viewer', href: '/bim-viewer', icon: Box, code: 'AF-02', phase: 2 },
       { name: 'QS Copilot', href: '/qs-copilot', icon: Bot, code: 'AF-04', phase: 3 },
+    ],
+  },
+  {
+    title: 'Account & Settings',
+    items: [
+      { name: 'Profile', href: '/settings/profile', icon: User, code: 'AUTH', phase: 2 },
+      { name: 'Security & Sessions', href: '/settings/security', icon: Lock, code: 'AUTH', phase: 2 },
     ],
   },
 ];

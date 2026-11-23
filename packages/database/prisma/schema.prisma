@@ -11,21 +11,110 @@ generator client {
 // User Identity & System Access
 // ==========================================
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  fullName     String
-  passwordHash String
-  role         String       @default("QS_ENGINEER") // GLOBAL_ADMIN, COMMERCIAL_DIRECTOR, SENIOR_QS, QS_ENGINEER, ESTIMATOR, AUDITOR, VIEWER
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id              String       @id @default(uuid())
+  email           String       @unique
+  fullName        String
+  passwordHash    String
+  role            String       @default("QS_ENGINEER") // GLOBAL_ADMIN, COMMERCIAL_DIRECTOR, SENIOR_QS, QS_ENGINEER, ESTIMATOR, AUDITOR, VIEWER
+  isActive        Boolean      @default(true)
+  isEmailVerified Boolean      @default(false)
+  accountStatus   String       @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  memberships     Membership[]
-  createdProjects Project[]    @relation("CreatedProjects")
+  memberships             Membership[]
+  createdProjects         Project[]                @relation("CreatedProjects")
+  sessions                Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  auditEvents             AuthAuditEvent[]
 
   @@index([email])
   @@index([role])
+  @@index([accountStatus])
   @@map("users")
+}
+
+// ==========================================
+// Authentication Sessions (Rotating Refresh Tokens)
+// ==========================================
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String    @unique
+  familyId         String    @default(uuid())
+  userAgent        String?
+  ipAddress        String?
+  isRevoked        Boolean   @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ==========================================
+// Email Verification Tokens
+// ==========================================
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+// ==========================================
+// Password Reset Tokens
+// ==========================================
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// ==========================================
+// Authentication Audit Events
+// ==========================================
+model AuthAuditEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  eventType String   // REGISTER_SUCCESS, LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, LOGOUT_ALL, REFRESH_SUCCESS, REFRESH_REUSE_DETECTED, PASSWORD_CHANGE, PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED, EMAIL_VERIFIED, ACCOUNT_LOCKED
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("auth_audit_events")
 }
 
 // ==========================================

@@ -21,6 +21,16 @@ export const paginationQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
+// Strong password requirement: 8-128 chars, 1 uppercase, 1 lowercase, 1 digit, 1 special character
+export const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters long')
+  .max(128, 'Password cannot exceed 128 characters')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+
 // ==========================================
 // 2. Organization Schemas
 // ==========================================
@@ -41,25 +51,47 @@ export const updateOrganizationSchema = createOrganizationSchema.partial().exten
 });
 
 // ==========================================
-// 3. User Schemas
+// 3. User & Authentication Schemas
 // ==========================================
 
-export const createUserSchema = z.object({
-  email: z.string().email('Must be a valid email address'),
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(128)
-    .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Must contain at least one digit'),
-  role: z.nativeEnum(UserRole).default(UserRole.QS_ENGINEER),
+export const registerSchema = z.object({
+  email: z.string().email('Must be a valid email address').toLowerCase().trim(),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100).trim(),
+  password: passwordSchema,
+  role: z.nativeEnum(UserRole).default(UserRole.QS_ENGINEER).optional(),
 });
 
+export const createUserSchema = registerSchema;
+
 export const loginSchema = z.object({
-  email: z.string().email('Must be a valid email address'),
+  email: z.string().email('Must be a valid email address').toLowerCase().trim(),
   password: z.string().min(1, 'Password is required'),
+});
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(10, 'Refresh token is required').optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: passwordSchema,
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Must be a valid email address').toLowerCase().trim(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(16, 'Reset token is required'),
+  newPassword: passwordSchema,
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(16, 'Verification token is required'),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z.string().email('Must be a valid email address').toLowerCase().trim(),
 });
 
 // ==========================================
@@ -90,8 +122,15 @@ export const updateProjectSchema = createProjectSchema.partial().omit({ organiza
 
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 export type PaginationQueryInput = z.infer<typeof paginationQuerySchema>;

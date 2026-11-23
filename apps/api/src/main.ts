@@ -1,11 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
+import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import * as crypto from 'crypto';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Correlation ID middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const correlationId =
+      (req.headers['x-correlation-id'] as string) || `req-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    req.headers['x-correlation-id'] = correlationId;
+    res.setHeader('x-correlation-id', correlationId);
+    next();
+  });
+
+  // Cookie parser for secure HttpOnly session tokens
+  app.use(cookieParser());
 
   // Global prefix: /api/v1
   app.setGlobalPrefix('api/v1');
@@ -36,6 +51,7 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`BuildMind AI API v5.0 started on port ${port} with prefix /api/v1`);
   logger.log(`Public Health endpoint: http://localhost:${port}/api/v1/health`);
+  logger.log(`Auth endpoints available at: http://localhost:${port}/api/v1/auth/*`);
 }
 
 void bootstrap();

@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "lint": "echo '@buildmind/web: lint passed'",
     "type-check": "tsc --noEmit",
-    "test": "echo '@buildmind/web: unit test passed'"
+    "test": "node test/frontend-auth.test.cjs"
   },
   "dependencies": {
     "@buildmind/shared-types": "workspace:*",

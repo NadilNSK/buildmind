@@ -70,14 +70,14 @@ describe('BuildMind AI API (e2e)', () => {
     expect(ids).toContain('AF-04');
   });
 
-  it('GET /api/v1/organizations/:id returns structured 501 for unauthenticated access', async () => {
+  it('GET /api/v1/organizations/:id rejects unauthenticated access with 401 Unauthorized', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/organizations/test-id-123')
-      .expect(501);
+      .expect(401);
 
     expect(res.body.success).toBe(false);
-    expect(res.body.statusCode).toBe(501);
-    expect(res.body.error).toBe('Not Implemented');
+    expect(res.body.statusCode).toBe(401);
+    expect(res.body.error).toBe('Unauthorized');
     expect(res.body.timestamp).toBeDefined();
     expect(res.body.correlationId).toBeDefined();
   });
