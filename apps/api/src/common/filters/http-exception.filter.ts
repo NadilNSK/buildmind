@@ -24,8 +24,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         errorName = (r['error'] as string) || exception.name;
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = process.env.NODE_ENV === 'production'
+        ? 'An unexpected internal server error occurred'
+        : exception.message;
       errorName = exception.name;
+    }
+
+    // In production, sanitize 500 internal errors to prevent database / stack leaks
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR && process.env.NODE_ENV === 'production') {
+      message = 'An unexpected internal server error occurred. Please contact support with correlation ID.';
+      errorName = 'InternalServerError';
     }
 
     const correlationId =

@@ -15,6 +15,8 @@ export class TokenService {
   private readonly accessExpiresInSeconds = parseInt(process.env.JWT_ACCESS_EXPIRES_IN || '900', 10); // 15 mins default
   private readonly refreshExpiresInDays = parseInt(process.env.JWT_REFRESH_EXPIRES_IN_DAYS || '7', 10); // 7 days default
   private readonly isProduction = process.env.NODE_ENV === 'production';
+  // Mutex map to handle concurrent in-flight refresh requests safely
+  private readonly inFlightRefreshes = new Map<string, Promise<{ tokens: AuthTokens; userId: string }>>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -95,83 +97,100 @@ export class TokenService {
 
     const tokenHash = this.passwordService.hashToken(rawRefreshToken);
 
-    const session = await this.prisma.session.findUnique({
-      where: { refreshTokenHash: tokenHash },
-      include: { user: true },
-    });
-
-    if (!session) {
-      this.logger.warn('Refresh attempt with unrecognized token hash');
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    // Concurrent in-flight deduplication: If a refresh for this exact token is already in flight,
+    // await that existing promise instead of racing or triggering a false reuse alert.
+    const existingInFlight = this.inFlightRefreshes.get(tokenHash);
+    if (existingInFlight) {
+      this.logger.log(`[TokenService] Deduplicated concurrent in-flight refresh request`);
+      return existingInFlight;
     }
 
-    // Reuse detection: If token was already revoked, someone is replaying a stolen/old token
-    if (session.isRevoked) {
-      this.logger.error(
-        `[SECURITY ALERT] Refresh token reuse detected for user ${session.userId} (Family: ${session.familyId})`,
-      );
+    const refreshOperation = (async () => {
+      const session = await this.prisma.session.findUnique({
+        where: { refreshTokenHash: tokenHash },
+        include: { user: true },
+      });
 
-      // Invalidate all sessions for this user immediately upon token reuse detection
-      await this.prisma.session.updateMany({
-        where: { userId: session.userId, isRevoked: false },
+      if (!session) {
+        this.logger.warn('Refresh attempt with unrecognized token hash');
+        throw new UnauthorizedException('Invalid or expired refresh token');
+      }
+
+      // Reuse detection: If token was already revoked, someone is replaying an old/stolen token
+      if (session.isRevoked) {
+        this.logger.error(
+          `[SECURITY ALERT] Refresh token reuse detected for user ${session.userId} (Family: ${session.familyId})`,
+        );
+
+        // Invalidate all sessions for this user immediately upon token reuse detection
+        await this.prisma.session.updateMany({
+          where: { userId: session.userId, isRevoked: false },
+          data: { isRevoked: true },
+        });
+
+        await this.auditService.logEvent(
+          session.userId,
+          AuthAuditEventType.REFRESH_REUSE_DETECTED,
+          req,
+          { familyId: session.familyId },
+        );
+
+        throw new UnauthorizedException(
+          'Security violation: Refresh token reuse detected. All active sessions have been invalidated.',
+        );
+      }
+
+      // Check expiration
+      if (new Date() > session.expiresAt) {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: { isRevoked: true },
+        });
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+
+      // Check user active status
+      if (!session.user.isActive || session.user.accountStatus === 'SUSPENDED') {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: { isRevoked: true },
+        });
+        throw new UnauthorizedException('Account is inactive or suspended');
+      }
+
+      // Atomic rotation: Mark current session as revoked
+      await this.prisma.session.update({
+        where: { id: session.id },
         data: { isRevoked: true },
       });
+
+      // Create next session in the same family
+      const { tokens } = await this.createSession(
+        {
+          id: session.user.id,
+          email: session.user.email,
+          role: session.user.role,
+        },
+        req,
+        session.familyId,
+      );
 
       await this.auditService.logEvent(
-        session.userId,
-        AuthAuditEventType.REFRESH_REUSE_DETECTED,
+        session.user.id,
+        AuthAuditEventType.REFRESH_SUCCESS,
         req,
-        { familyId: session.familyId },
+        { previousSessionId: session.id },
       );
 
-      throw new UnauthorizedException(
-        'Security violation: Refresh token reuse detected. All active sessions have been invalidated.',
-      );
+      return { tokens, userId: session.user.id };
+    })();
+
+    this.inFlightRefreshes.set(tokenHash, refreshOperation);
+    try {
+      return await refreshOperation;
+    } finally {
+      this.inFlightRefreshes.delete(tokenHash);
     }
-
-    // Check expiration
-    if (new Date() > session.expiresAt) {
-      await this.prisma.session.update({
-        where: { id: session.id },
-        data: { isRevoked: true },
-      });
-      throw new UnauthorizedException('Refresh token has expired');
-    }
-
-    // Check user active status
-    if (!session.user.isActive || session.user.accountStatus === 'SUSPENDED') {
-      await this.prisma.session.update({
-        where: { id: session.id },
-        data: { isRevoked: true },
-      });
-      throw new UnauthorizedException('Account is inactive or suspended');
-    }
-
-    // Atomic rotation: Mark current session as revoked
-    await this.prisma.session.update({
-      where: { id: session.id },
-      data: { isRevoked: true },
-    });
-
-    // Create next session in the same family
-    const { tokens } = await this.createSession(
-      {
-        id: session.user.id,
-        email: session.user.email,
-        role: session.user.role,
-      },
-      req,
-      session.familyId,
-    );
-
-    await this.auditService.logEvent(
-      session.user.id,
-      AuthAuditEventType.REFRESH_SUCCESS,
-      req,
-      { previousSessionId: session.id },
-    );
-
-    return { tokens, userId: session.user.id };
   }
 
   /**

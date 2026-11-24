@@ -76,8 +76,22 @@ pnpm build
 ```
 
 ### 4. Start Development Services
+
+#### Automated Windows Startup (Recommended)
+```powershell
+# Validates toolchain, WinNAT ports, Docker infrastructure, and launches service URL dashboard
+.\dev-start.ps1
+
+# To verify environment and infrastructure only:
+.\dev-start.ps1 -VerifyOnly
+
+# To launch all services concurrently:
+.\dev-start.ps1 -StartAll
+```
+
+#### Manual Service Launch
 ```bash
-# Start NestJS API (port 4000)
+# Start NestJS API (port 4001 - Note: port 4000 is reserved by Windows WinNAT)
 pnpm dev:api
 
 # Start Next.js Frontend (port 3000)
@@ -85,6 +99,22 @@ pnpm dev:web
 
 # Start FastAPI AI Worker (port 8000)
 cd services/ai-worker && uvicorn app.main:app --port 8000 --reload
+```
+
+### 5. Acceptance & Integration Testing
+```powershell
+# 16-Scenario Playwright End-to-End Acceptance Suite
+node apps/web/test/playwright-e2e.test.cjs
+
+# Backend Jest E2E Suite (41 tests)
+pnpm --filter @buildmind/api run test:e2e
+
+# Frontend Auth & RBAC Suites (34 tests)
+node apps/web/test/frontend-auth.test.cjs
+node apps/web/test/frontend-org-rbac.test.cjs
+
+# AI Worker Smoke Suite (4 tests)
+python services/ai-worker/tests/smoke_test.py
 ```
 
 ---

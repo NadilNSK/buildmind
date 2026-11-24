@@ -42,7 +42,24 @@ Once installed, launch Docker Desktop from the Windows Start menu and ensure WSL
 
 ---
 
-## 3. Infrastructure Management Commands
+## 3. Automated Windows Development Startup (`dev-start.ps1`)
+
+An enterprise-grade PowerShell automation script is provided at the repository root to validate the developer toolchain, inspect Windows WinNAT port exclusions, guarantee container health, and display active service endpoints.
+
+```powershell
+# Interactive startup & dashboard
+.\dev-start.ps1
+
+# Pre-flight validation only
+.\dev-start.ps1 -VerifyOnly
+
+# Start all monorepo development services in parallel
+.\dev-start.ps1 -StartAll
+```
+
+---
+
+## 4. Infrastructure Management Commands
 
 Once Docker Desktop is running:
 
@@ -92,12 +109,12 @@ pnpm --filter @buildmind/database exec prisma migrate dev --name init_phase1_mod
 
 ## 5. Running Application Services
 
-### 5.1 NestJS Backend API (Port 4000)
+### 5.1 NestJS Backend API (Port 4001)
 ```powershell
 $env:PATH = "C:\Users\user\AppData\Roaming\npm;$env:PATH"
 pnpm --filter @buildmind/api run start:dev
-# Public Health: http://localhost:4000/api/v1/health
-# Capabilities Catalog: http://localhost:4000/api/v1/qs/capabilities
+# Public Health: http://localhost:4001/api/v1/health
+# Capabilities Catalog: http://localhost:4001/api/v1/qs/capabilities
 ```
 
 ### 5.2 Next.js Web Frontend (Port 3000)

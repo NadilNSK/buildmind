@@ -31,16 +31,43 @@ async function bootstrap() {
     next();
   });
 
+  // Security Headers middleware
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '0');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+  });
+
   // Cookie parser for secure HttpOnly session tokens
   app.use(cookieParser());
+
+  // Enable graceful shutdown hooks
+  app.enableShutdownHooks();
 
   // Global prefix: /api/v1
   app.setGlobalPrefix('api/v1');
 
-  // CORS configuration
+  // Hardened CORS configuration (rejects arbitrary origins with credentials)
+  const allowedOrigins = [
+    process.env.CORS_ORIGIN || 'http://localhost:3000',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ];
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
     credentials: true,
   });
 

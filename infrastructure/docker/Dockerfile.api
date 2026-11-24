@@ -17,5 +17,5 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 RUN pnpm install --prod --frozen-lockfile=false
 
-EXPOSE 4000
+EXPOSE 4001
 CMD ["node", "apps/api/dist/main.js"]

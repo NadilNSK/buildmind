@@ -27,7 +27,7 @@ import {
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser, AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { CSRF_COOKIE_NAME } from '../../common/guards/csrf.guard';
-import * as crypto from 'crypto';
+import { generateSignedCsrfToken, verifySignedCsrfToken } from '../../common/security/csrf.util';
 
 @Controller('auth')
 export class AuthController {
@@ -38,14 +38,17 @@ export class AuthController {
 
   /**
    * GET /api/v1/auth/csrf
-   * Issues or refreshes the double-submit CSRF cookie
+   * Issues or refreshes the cryptographically signed double-submit CSRF cookie
    */
   @Public()
   @Get('csrf')
   @HttpCode(HttpStatus.OK)
   async getCsrfToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const existing = req.cookies?.[CSRF_COOKIE_NAME];
-    const token = existing || crypto.randomBytes(24).toString('hex');
+    const token =
+      existing && verifySignedCsrfToken(existing)
+        ? existing
+        : generateSignedCsrfToken();
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',

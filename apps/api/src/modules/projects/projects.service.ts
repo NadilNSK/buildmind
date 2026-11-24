@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../auth/services/audit.service';
 import {
   MeasurementStandard,
   ProjectStatus,
@@ -19,7 +20,10 @@ import {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async findAll(
     organizationId: string,
@@ -138,6 +142,13 @@ export class ProjectsService {
       return created;
     });
 
+    await this.auditService.logEvent(userId, 'PROJECT_CREATED', undefined, {
+      organizationId,
+      projectId: project.id,
+      code: project.code,
+      name: project.name,
+    });
+
     return this.mapProject(project);
   }
 
@@ -171,6 +182,12 @@ export class ProjectsService {
       },
     });
 
+    await this.auditService.logEvent(null, 'PROJECT_UPDATED', undefined, {
+      organizationId,
+      projectId,
+      changes: input,
+    });
+
     return this.mapProject(updated);
   }
 
@@ -185,6 +202,13 @@ export class ProjectsService {
 
     await this.prisma.project.delete({
       where: { id: projectId },
+    });
+
+    await this.auditService.logEvent(null, 'PROJECT_DELETED', undefined, {
+      organizationId,
+      projectId,
+      code: existing.code,
+      name: existing.name,
     });
 
     return { success: true, message: 'Project deleted successfully' };
@@ -274,6 +298,13 @@ export class ProjectsService {
       },
     });
 
+    await this.auditService.logEvent(null, 'PROJECT_MEMBER_ADDED', undefined, {
+      organizationId,
+      projectId,
+      targetUserId: input.userId,
+      role: input.role,
+    });
+
     return {
       id: member.id,
       projectId: member.projectId,
@@ -312,6 +343,12 @@ export class ProjectsService {
 
     await this.prisma.projectMember.delete({
       where: { id: member.id },
+    });
+
+    await this.auditService.logEvent(null, 'PROJECT_MEMBER_REMOVED', undefined, {
+      organizationId,
+      projectId,
+      targetUserId,
     });
 
     return { success: true, message: 'Member removed from project successfully' };

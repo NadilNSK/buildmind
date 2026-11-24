@@ -41,7 +41,7 @@ services:
   # MinIO S3-Compatible Object Storage
   # ==========================================
   minio:
-    image: elestio/minio:latest
+    image: elestio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: buildmind-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -61,7 +61,7 @@ services:
 
   # MinIO Bucket Pre-initializer
   minio-init:
-    image: alpine:latest
+    image: alpine:3.24.4
     container_name: buildmind-minio-init
     volumes:
       - minio_data:/data

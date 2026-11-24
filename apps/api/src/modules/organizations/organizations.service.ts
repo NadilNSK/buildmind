@@ -8,6 +8,7 @@ import {
 import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { AuditService } from '../auth/services/audit.service';
 import {
   OrganizationRole,
   MembershipStatus,
@@ -30,6 +31,7 @@ export class OrganizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly auditService: AuditService,
   ) {}
 
   // ==========================================
@@ -66,6 +68,12 @@ export class OrganizationsService {
       });
 
       return org;
+    });
+
+    await this.auditService.logEvent(userId, 'ORGANIZATION_CREATED', undefined, {
+      organizationId: organization.id,
+      name: organization.name,
+      slug: organization.slug,
     });
 
     return this.mapOrganization(organization, OrganizationRole.ORGANIZATION_OWNER, 1, 0);
@@ -174,6 +182,13 @@ export class OrganizationsService {
       },
     });
 
+    await this.auditService.logEvent(null, 'ORGANIZATION_UPDATED', undefined, {
+      organizationId,
+      name: updated.name,
+      slug: updated.slug,
+      status: updated.status,
+    });
+
     return this.mapOrganization(updated, undefined, updated._count.memberships, updated._count.projects);
   }
 
@@ -188,6 +203,12 @@ export class OrganizationsService {
 
     await this.prisma.organization.delete({
       where: { id: organizationId },
+    });
+
+    await this.auditService.logEvent(null, 'ORGANIZATION_DELETED', undefined, {
+      organizationId,
+      name: org.name,
+      slug: org.slug,
     });
 
     return { success: true, message: 'Organization deleted successfully' };
@@ -235,6 +256,12 @@ export class OrganizationsService {
         },
         data: { role: OrganizationRole.ORGANIZATION_OWNER },
       });
+    });
+
+    await this.auditService.logEvent(currentOwnerUserId, 'OWNERSHIP_TRANSFERRED', undefined, {
+      organizationId,
+      previousOwnerUserId: currentOwnerUserId,
+      newOwnerUserId: targetUserId,
     });
 
     return {
@@ -309,6 +336,14 @@ export class OrganizationsService {
       },
     });
 
+    await this.auditService.logEvent(null, 'MEMBER_ROLE_CHANGED', undefined, {
+      organizationId,
+      membershipId,
+      targetUserId: member.userId,
+      previousRole: member.role,
+      newRole: input.role,
+    });
+
     return {
       id: updated.id,
       userId: updated.userId,
@@ -353,6 +388,14 @@ export class OrganizationsService {
       include: {
         user: { select: { id: true, email: true, fullName: true } },
       },
+    });
+
+    await this.auditService.logEvent(null, 'MEMBER_STATUS_CHANGED', undefined, {
+      organizationId,
+      membershipId,
+      targetUserId: member.userId,
+      previousStatus: member.status,
+      newStatus: input.status,
     });
 
     return {
@@ -413,6 +456,12 @@ export class OrganizationsService {
       await tx.membership.delete({
         where: { id: membershipId },
       });
+    });
+
+    await this.auditService.logEvent(null, 'MEMBER_REMOVED', undefined, {
+      organizationId,
+      membershipId,
+      targetUserId: member.userId,
     });
 
     return { success: true, message: 'Member removed from organization successfully' };
@@ -489,6 +538,13 @@ export class OrganizationsService {
       role: input.role,
     });
 
+    await this.auditService.logEvent(inviter.id, 'INVITATION_CREATED', undefined, {
+      organizationId,
+      invitationId: invitation.id,
+      invitedEmail: normalizedEmail,
+      role: input.role,
+    });
+
     return {
       id: invitation.id,
       organizationId: invitation.organizationId,
@@ -547,6 +603,11 @@ export class OrganizationsService {
       data: { status: InvitationStatus.REVOKED },
     });
 
+    await this.auditService.logEvent(null, 'INVITATION_REVOKED', undefined, {
+      organizationId,
+      invitationId,
+    });
+
     return { success: true, message: 'Invitation revoked successfully' };
   }
 
@@ -584,6 +645,11 @@ export class OrganizationsService {
       fullName: inviter.fullName,
       organizationName: invitation.organization.name,
       role: invitation.role,
+    });
+
+    await this.auditService.logEvent(null, 'INVITATION_RESENT', undefined, {
+      organizationId,
+      invitationId,
     });
 
     return {
@@ -664,8 +730,21 @@ export class OrganizationsService {
       );
     }
 
-    // Accept and create/activate membership in transaction
+    // Accept and create/activate membership in transaction with atomic concurrency protection
     await this.prisma.$transaction(async (tx) => {
+      // Ensure invitation was still pending at moment of transaction commit
+      const updateResult = await tx.organizationInvitation.updateMany({
+        where: { id: invitation.id, status: InvitationStatus.PENDING },
+        data: {
+          status: InvitationStatus.ACCEPTED,
+          acceptedAt: new Date(),
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new BadRequestException('Invitation has already been accepted or is no longer valid');
+      }
+
       await tx.membership.upsert({
         where: {
           userId_organizationId: {
@@ -684,14 +763,12 @@ export class OrganizationsService {
           status: MembershipStatus.ACTIVE,
         },
       });
+    });
 
-      await tx.organizationInvitation.update({
-        where: { id: invitation.id },
-        data: {
-          status: InvitationStatus.ACCEPTED,
-          acceptedAt: new Date(),
-        },
-      });
+    await this.auditService.logEvent(user.id, 'INVITATION_ACCEPTED', undefined, {
+      organizationId: invitation.organizationId,
+      invitationId: invitation.id,
+      role: invitation.role,
     });
 
     return {

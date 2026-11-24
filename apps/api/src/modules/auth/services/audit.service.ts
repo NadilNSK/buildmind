@@ -12,7 +12,7 @@ export class AuditService {
 
   async logEvent(
     userId: string | null,
-    eventType: AuthAuditEventType,
+    eventType: AuthAuditEventType | string,
     req?: Request,
     metadata?: Record<string, unknown>,
   ): Promise<void> {

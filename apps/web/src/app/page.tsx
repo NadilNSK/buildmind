@@ -56,43 +56,43 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-[#F8FAFC]">
+    <div className="min-h-screen bg-[#0B1220] text-[#F8FAFC] overflow-x-hidden">
       {/* Top Navigation */}
-      <nav className="h-16 border-b border-[#1E2E4E] bg-[#070C16]/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0D9488] to-[#14B8A6] flex items-center justify-center font-bold text-white shadow-sm shadow-[#14B8A6]/20">
+      <nav className="h-16 border-b border-[#1E2E4E] bg-[#070C16]/80 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#0D9488] to-[#14B8A6] flex items-center justify-center font-bold text-white shadow-sm shadow-[#14B8A6]/20 shrink-0">
             BM
           </div>
-          <div>
+          <div className="truncate">
             <span className="font-semibold text-sm tracking-tight text-[#F8FAFC]">
               BuildMind AI
             </span>
-            <span className="ml-2 text-[10px] text-[#14B8A6] font-mono px-1.5 py-0.5 bg-[#14B8A6]/10 rounded border border-[#14B8A6]/20">
+            <span className="ml-1.5 sm:ml-2 text-[10px] text-[#14B8A6] font-mono px-1.5 py-0.5 bg-[#14B8A6]/10 rounded border border-[#14B8A6]/20 hidden xs:inline">
               v5.0 Enterprise
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="hidden md:flex items-center gap-2 text-xs text-[#94A3B8] mr-2">
             <span className="w-2 h-2 rounded-full bg-[#14B8A6]"></span>
             <span>Target Market: Sri Lanka (SLS 573 / CIDA) & Global</span>
           </div>
           <Link
             href="/login"
-            className="px-3.5 py-1.5 rounded-lg border border-[#1E2E4E] hover:border-[#14B8A6]/50 bg-[#111C35] hover:bg-[#182745] text-[#CBD5E1] text-xs font-medium transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-[#1E2E4E] hover:border-[#14B8A6]/50 bg-[#111C35] hover:bg-[#182745] text-[#CBD5E1] text-xs font-medium transition-colors"
           >
             Sign In
           </Link>
           <Link
             href="/register"
-            className="px-3.5 py-1.5 rounded-lg border border-[#14B8A6]/40 bg-[#14B8A6]/10 hover:bg-[#14B8A6]/20 text-[#14B8A6] text-xs font-semibold transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-[#14B8A6]/40 bg-[#14B8A6]/10 hover:bg-[#14B8A6]/20 text-[#14B8A6] text-xs font-semibold transition-colors"
           >
             Register
           </Link>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#14B8A6] hover:bg-[#0D9488] text-[#0B1220] text-xs font-semibold shadow-md shadow-[#14B8A6]/20 transition-all"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#14B8A6] hover:bg-[#0D9488] text-[#0B1220] text-xs font-semibold shadow-md shadow-[#14B8A6]/20 transition-all"
           >
             Workspace <ArrowRight className="w-3.5 h-3.5" />
           </Link>
@@ -100,9 +100,10 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <header className="relative pt-20 pb-16 px-6 max-w-6xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#111C35] border border-[#1E2E4E] text-xs text-[#14B8A6] mb-6">
-          <ShieldCheck className="w-3.5 h-3.5" /> Phase 1 Foundation Verified: Monorepo, API, DB & Design System
+      <header className="relative pt-20 pb-16 px-4 sm:px-6 max-w-6xl mx-auto text-center">
+        <div className="inline-flex max-w-full items-center gap-2 px-3 py-1 rounded-full bg-[#111C35] border border-[#1E2E4E] text-[11px] sm:text-xs text-[#14B8A6] mb-6">
+          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Phase 1 Foundation Verified: Monorepo, API, DB & Design System</span>
         </div>
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-[#F8FAFC] leading-tight mb-6">
           Enterprise AI-Assisted <br className="hidden md:block" />
