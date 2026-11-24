@@ -1,3 +1,15 @@
+if (typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile();
+  } catch {
+    try {
+      process.loadEnvFile('../../.env');
+    } catch {
+      // env already loaded or file missing
+    }
+  }
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
@@ -47,7 +59,7 @@ async function bootstrap() {
   // Global structured exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = process.env.API_PORT || 4000;
+  const port = process.env.API_PORT || 4001;
   await app.listen(port);
   logger.log(`BuildMind AI API v5.0 started on port ${port} with prefix /api/v1`);
   logger.log(`Public Health endpoint: http://localhost:${port}/api/v1/health`);

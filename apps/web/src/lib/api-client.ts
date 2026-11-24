@@ -4,7 +4,7 @@
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 
 export class ApiError extends Error {
   statusCode: number;
@@ -138,6 +138,17 @@ export async function apiClient<T>(
     const formattedMsg = Array.isArray(message) ? message.join(', ') : String(message);
     const correlationId = data && typeof data === 'object' ? data.correlationId : undefined;
     throw new ApiError(formattedMsg, response.status, data?.error || 'HttpError', correlationId);
+  }
+
+  // Automatically unwrap TransformInterceptor ApiResponse envelope if present
+  if (
+    data &&
+    typeof data === 'object' &&
+    'data' in data &&
+    'success' in data &&
+    data.success === true
+  ) {
+    return data.data as T;
   }
 
   return data as T;
