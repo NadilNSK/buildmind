@@ -19,13 +19,20 @@ import {
   AlertCircle,
   Loader2,
   Save,
+  GitBranch,
+  GitCompare,
+  Upload,
 } from 'lucide-react';
 import { apiClient, ApiError } from '@/lib/api-client';
 import {
   DocumentDetails,
   DocumentCategory,
   DocumentDiscipline,
+  DocumentVersionSummary,
 } from '@buildmind/shared-types';
+import { NewRevisionModal } from './NewRevisionModal';
+import { RevisionCompareModal } from './RevisionCompareModal';
+import { ReviewDecisionModal } from './ReviewDecisionModal';
 
 interface DocumentDetailsDrawerProps {
   projectId: string;
@@ -36,6 +43,9 @@ interface DocumentDetailsDrawerProps {
   canEdit?: boolean;
   canArchive?: boolean;
   canDownload?: boolean;
+  canUploadRevision?: boolean;
+  canApprove?: boolean;
+  canPublish?: boolean;
 }
 
 export function DocumentDetailsDrawer({
@@ -47,11 +57,20 @@ export function DocumentDetailsDrawer({
   canEdit = true,
   canArchive = true,
   canDownload = true,
+  canUploadRevision = true,
+  canApprove = true,
+  canPublish = true,
 }: DocumentDetailsDrawerProps) {
   const [doc, setDoc] = useState<DocumentDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Revision Modals State
+  const [isNewRevisionOpen, setIsNewRevisionOpen] = useState(false);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedReviewVersion, setSelectedReviewVersion] = useState<DocumentVersionSummary | null>(null);
 
   // Edit Mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -216,6 +235,70 @@ export function DocumentDetailsDrawer({
     } catch {
       // Fallback to direct stream download
       window.open(`/api/v1/projects/${projectId}/documents/${doc.id}/download`, '_blank');
+    }
+  };
+
+  const handleDownloadVersion = async (versionId: string) => {
+    if (!doc) return;
+    try {
+      const { downloadUrl } = await apiClient<{ downloadUrl: string }>(
+        `/projects/${projectId}/documents/${doc.id}/versions/${versionId}/download-url`,
+      );
+      window.open(downloadUrl, '_blank');
+    } catch {
+      window.open(`/api/v1/projects/${projectId}/documents/${doc.id}/versions/${versionId}/download`, '_blank');
+    }
+  };
+
+  const handleSubmitVersion = async (versionId: string) => {
+    if (!doc) return;
+    try {
+      setActionLoading(true);
+      await apiClient(`/projects/${projectId}/documents/${doc.id}/versions/${versionId}/submit`, {
+        method: 'POST',
+      });
+      const updated = await apiClient<DocumentDetails>(`/projects/${projectId}/documents/${doc.id}`);
+      setDoc(updated);
+      onUpdated();
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Failed to submit version');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRequestReview = async (versionId: string) => {
+    if (!doc) return;
+    try {
+      setActionLoading(true);
+      await apiClient(`/projects/${projectId}/documents/${doc.id}/versions/${versionId}/request-review`, {
+        method: 'POST',
+        body: JSON.stringify({ comments: 'Submitted for formal engineering review' }),
+      });
+      const updated = await apiClient<DocumentDetails>(`/projects/${projectId}/documents/${doc.id}`);
+      setDoc(updated);
+      onUpdated();
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Failed to request review');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePublishVersion = async (versionId: string) => {
+    if (!doc) return;
+    try {
+      setActionLoading(true);
+      await apiClient(`/projects/${projectId}/documents/${doc.id}/versions/${versionId}/publish`, {
+        method: 'POST',
+      });
+      const updated = await apiClient<DocumentDetails>(`/projects/${projectId}/documents/${doc.id}`);
+      setDoc(updated);
+      onUpdated();
+    } catch (err: unknown) {
+      setError(err instanceof ApiError ? err.message : 'Failed to publish version');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -478,12 +561,183 @@ export function DocumentDetailsDrawer({
 
                 <div className="p-2.5 rounded-lg bg-[#111C35]/60 border border-[#1E2E4E]/60 space-y-0.5">
                   <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block">
-                    Scan Status
+                    Antivirus Status
                   </span>
-                  <span className="text-[#10B981] font-semibold flex items-center gap-1">
+                  <span
+                    className={`font-semibold text-xs flex items-center gap-1 ${
+                      doc.securityScanStatus === 'CLEAN'
+                        ? 'text-[#10B981]'
+                        : doc.securityScanStatus === 'FLAGGED'
+                        ? 'text-[#EF4444]'
+                        : 'text-[#F59E0B]'
+                    }`}
+                  >
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    {doc.securityScanStatus}
+                    {doc.securityScanStatus === 'NOT_SCANNED' || doc.securityScanStatus === 'UNSCANNED'
+                      ? 'Not Scanned (Local Dev)'
+                      : doc.securityScanStatus}
                   </span>
+                </div>
+              </div>
+
+              {/* Revision Control & History Section */}
+              <div className="space-y-3 p-3.5 rounded-xl bg-[#111C35] border border-[#1E2E4E]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#F8FAFC]">
+                    <GitBranch className="w-4 h-4 text-[#14B8A6]" />
+                    <span>Revision History</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#1E2E4E] text-[#94A3B8] font-mono">
+                      {doc.versions?.length || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {doc.versions && doc.versions.length >= 2 && (
+                      <button
+                        type="button"
+                        data-testid="btn-compare-revisions"
+                        onClick={() => setIsCompareOpen(true)}
+                        className="px-2 py-1 text-[11px] font-semibold rounded bg-[#0D1527] hover:bg-[#1E2E4E] text-[#38BDF8] border border-[#1E2E4E] transition-colors flex items-center gap-1"
+                      >
+                        <GitCompare className="w-3 h-3" />
+                        <span>Compare</span>
+                      </button>
+                    )}
+                    {canUploadRevision && !doc.archivedAt && (
+                      <button
+                        type="button"
+                        data-testid="btn-upload-revision"
+                        onClick={() => setIsNewRevisionOpen(true)}
+                        className="px-2 py-1 text-[11px] font-semibold rounded bg-[#14B8A6]/10 hover:bg-[#14B8A6]/20 text-[#14B8A6] border border-[#14B8A6]/30 transition-colors flex items-center gap-1"
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>New Revision</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {doc.versions && doc.versions.length > 0 ? (
+                    doc.versions.map((v) => {
+                      const isCurrentPublished = doc.currentPublishedVersionId === v.id;
+                      return (
+                        <div
+                          key={v.id}
+                          className={`p-2.5 rounded-lg border text-xs space-y-1.5 ${
+                            isCurrentPublished
+                              ? 'bg-[#14B8A6]/10 border-[#14B8A6]/40'
+                              : 'bg-[#0D1527] border-[#1E2E4E]/60'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-[#1E2E4E] text-[#F8FAFC]">
+                                Rev {v.revisionCode}
+                              </span>
+                              <span className="text-[10px] text-[#64748B]">v{v.versionNumber}</span>
+                              {isCurrentPublished && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-[#10B981]/20 text-[#10B981] border border-[#10B981]/30">
+                                  Published
+                                </span>
+                              )}
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                v.workflowStatus === 'PUBLISHED'
+                                  ? 'bg-[#10B981]/20 text-[#10B981]'
+                                  : v.workflowStatus === 'SUPERSEDED'
+                                  ? 'bg-[#64748B]/20 text-[#94A3B8]'
+                                  : v.workflowStatus === 'APPROVED'
+                                  ? 'bg-[#06B6D4]/20 text-[#06B6D4]'
+                                  : v.workflowStatus === 'UNDER_REVIEW'
+                                  ? 'bg-[#3B82F6]/20 text-[#3B82F6]'
+                                  : v.workflowStatus === 'SUBMITTED'
+                                  ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]'
+                                  : 'bg-[#F59E0B]/20 text-[#F59E0B]'
+                              }`}
+                            >
+                              {v.workflowStatus.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+
+                          {v.changeNote && (
+                            <p className="text-[11px] text-[#94A3B8] italic">{v.changeNote}</p>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1 border-t border-[#1E2E4E]/40 text-[10px] text-[#64748B]">
+                            <span>
+                              {v.uploadedBy ? v.uploadedBy.fullName : 'System'} • {new Date(v.createdAt).toLocaleDateString()}
+                            </span>
+
+                            <div className="flex items-center gap-1.5">
+                              {canDownload && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadVersion(v.id)}
+                                  className="text-[#94A3B8] hover:text-[#14B8A6] p-0.5"
+                                  title="Download this version"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {v.workflowStatus === 'DRAFT' && (
+                                <button
+                                  type="button"
+                                  data-testid={`btn-submit-v${v.versionNumber}`}
+                                  onClick={() => handleSubmitVersion(v.id)}
+                                  disabled={actionLoading}
+                                  className="px-1.5 py-0.5 rounded bg-[#8B5CF6]/20 text-[#A78BFA] hover:bg-[#8B5CF6]/30 font-semibold"
+                                >
+                                  Submit
+                                </button>
+                              )}
+
+                              {v.workflowStatus === 'SUBMITTED' && (
+                                <button
+                                  type="button"
+                                  data-testid={`btn-req-review-v${v.versionNumber}`}
+                                  onClick={() => handleRequestReview(v.id)}
+                                  disabled={actionLoading}
+                                  className="px-1.5 py-0.5 rounded bg-[#3B82F6]/20 text-[#60A5FA] hover:bg-[#3B82F6]/30 font-semibold"
+                                >
+                                  Request Review
+                                </button>
+                              )}
+
+                              {v.workflowStatus === 'UNDER_REVIEW' && canApprove && (
+                                <button
+                                  type="button"
+                                  data-testid={`btn-review-v${v.versionNumber}`}
+                                  onClick={() => {
+                                    setSelectedReviewVersion(v);
+                                    setIsReviewModalOpen(true);
+                                  }}
+                                  className="px-1.5 py-0.5 rounded bg-[#06B6D4]/20 text-[#22D3EE] hover:bg-[#06B6D4]/30 font-semibold"
+                                >
+                                  Review
+                                </button>
+                              )}
+
+                              {v.workflowStatus === 'APPROVED' && canPublish && (
+                                <button
+                                  type="button"
+                                  data-testid={`btn-publish-v${v.versionNumber}`}
+                                  onClick={() => handlePublishVersion(v.id)}
+                                  disabled={actionLoading}
+                                  className="px-1.5 py-0.5 rounded bg-[#10B981]/20 text-[#34D399] hover:bg-[#10B981]/30 font-semibold"
+                                >
+                                  Publish
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-[11px] text-[#64748B] italic">No revision history found</p>
+                  )}
                 </div>
               </div>
 
@@ -637,6 +891,55 @@ export function DocumentDetailsDrawer({
               </button>
             )}
           </div>
+        )}
+
+        {/* New Revision Modal */}
+        {doc && (
+          <NewRevisionModal
+            projectId={projectId}
+            documentId={doc.id}
+            documentTitle={doc.title}
+            currentRevisionCode={doc.currentRevisionCode || undefined}
+            isOpen={isNewRevisionOpen}
+            onClose={() => setIsNewRevisionOpen(false)}
+            onSuccess={async () => {
+              const updated = await apiClient<DocumentDetails>(`/projects/${projectId}/documents/${doc.id}`);
+              setDoc(updated);
+              onUpdated();
+            }}
+          />
+        )}
+
+        {/* Compare Revisions Modal */}
+        {doc && doc.versions && (
+          <RevisionCompareModal
+            projectId={projectId}
+            documentId={doc.id}
+            versions={doc.versions}
+            isOpen={isCompareOpen}
+            onClose={() => setIsCompareOpen(false)}
+          />
+        )}
+
+        {/* Review Decision Modal */}
+        {doc && selectedReviewVersion && (
+          <ReviewDecisionModal
+            projectId={projectId}
+            documentId={doc.id}
+            versionId={selectedReviewVersion.id}
+            revisionCode={selectedReviewVersion.revisionCode}
+            documentTitle={doc.title}
+            isOpen={isReviewModalOpen}
+            onClose={() => {
+              setIsReviewModalOpen(false);
+              setSelectedReviewVersion(null);
+            }}
+            onSuccess={async () => {
+              const updated = await apiClient<DocumentDetails>(`/projects/${projectId}/documents/${doc.id}`);
+              setDoc(updated);
+              onUpdated();
+            }}
+          />
         )}
       </div>
     </div>

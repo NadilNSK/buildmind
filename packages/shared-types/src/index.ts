@@ -140,6 +140,71 @@ export enum DocumentScanStatus {
   PENDING_SCAN = 'PENDING_SCAN',
   FLAGGED = 'FLAGGED',
   UNSCANNED = 'UNSCANNED',
+  NOT_SCANNED = 'NOT_SCANNED',
+}
+
+export enum DocumentWorkflowStatus {
+  DRAFT = 'DRAFT',
+  SUBMITTED = 'SUBMITTED',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+  REJECTED = 'REJECTED',
+  APPROVED = 'APPROVED',
+  PUBLISHED = 'PUBLISHED',
+  SUPERSEDED = 'SUPERSEDED',
+  WITHDRAWN = 'WITHDRAWN',
+}
+
+export enum DrawingType {
+  SITE_PLAN = 'SITE_PLAN',
+  FLOOR_PLAN = 'FLOOR_PLAN',
+  ELEVATION = 'ELEVATION',
+  SECTION = 'SECTION',
+  DETAIL = 'DETAIL',
+  STRUCTURAL_LAYOUT = 'STRUCTURAL_LAYOUT',
+  REINFORCEMENT_DETAIL = 'REINFORCEMENT_DETAIL',
+  FOUNDATION_LAYOUT = 'FOUNDATION_LAYOUT',
+  MEP_LAYOUT = 'MEP_LAYOUT',
+  GENERAL_ARRANGEMENT = 'GENERAL_ARRANGEMENT',
+  OTHER = 'OTHER',
+}
+
+export enum SheetSize {
+  A0 = 'A0',
+  A1 = 'A1',
+  A2 = 'A2',
+  A3 = 'A3',
+  A4 = 'A4',
+  CUSTOM = 'CUSTOM',
+}
+
+export enum IssuePurpose {
+  FOR_INFORMATION = 'FOR_INFORMATION',
+  FOR_REVIEW = 'FOR_REVIEW',
+  FOR_APPROVAL = 'FOR_APPROVAL',
+  FOR_TENDER = 'FOR_TENDER',
+  FOR_CONSTRUCTION = 'FOR_CONSTRUCTION',
+  AS_BUILT = 'AS_BUILT',
+}
+
+export enum ReviewDecision {
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+}
+
+export enum ReviewStatus {
+  PENDING = 'PENDING',
+  IN_REVIEW = 'IN_REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
+}
+
+export enum TransmittalStatus {
+  DRAFT = 'DRAFT',
+  ISSUED = 'ISSUED',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum CurrencyCode {
@@ -226,10 +291,23 @@ export type PermissionKey =
   | 'documents.restore'
   | 'documents.link'
   | 'documents.storage_usage'
+  | 'documents.versions.view'
+  | 'documents.versions.upload'
+  | 'documents.versions.download'
+  | 'documents.submit'
+  | 'documents.review'
+  | 'documents.approve'
+  | 'documents.publish'
+  | 'documents.withdraw'
   | 'drawings.view'
   | 'drawings.upload'
+  | 'drawings.create'
   | 'drawings.update'
   | 'drawings.delete'
+  | 'transmittals.view'
+  | 'transmittals.create'
+  | 'transmittals.issue'
+  | 'transmittals.cancel'
   | 'takeoff.view'
   | 'takeoff.create'
   | 'takeoff.update'
@@ -302,10 +380,23 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
   'documents.restore',
   'documents.link',
   'documents.storage_usage',
+  'documents.versions.view',
+  'documents.versions.upload',
+  'documents.versions.download',
+  'documents.submit',
+  'documents.review',
+  'documents.approve',
+  'documents.publish',
+  'documents.withdraw',
   'drawings.view',
   'drawings.upload',
+  'drawings.create',
   'drawings.update',
   'drawings.delete',
+  'transmittals.view',
+  'transmittals.create',
+  'transmittals.issue',
+  'transmittals.cancel',
   'takeoff.view',
   'takeoff.create',
   'takeoff.update',
@@ -378,8 +469,20 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'documents.restore',
     'documents.link',
     'documents.storage_usage',
+    'documents.versions.view',
+    'documents.versions.upload',
+    'documents.versions.download',
+    'documents.submit',
+    'documents.review',
+    'documents.approve',
+    'documents.publish',
     'drawings.view',
     'drawings.upload',
+    'drawings.create',
+    'drawings.update',
+    'transmittals.view',
+    'transmittals.create',
+    'transmittals.issue',
     'takeoff.view',
     'takeoff.approve',
     'estimates.view',
@@ -427,9 +530,20 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'documents.restore',
     'documents.link',
     'documents.storage_usage',
+    'documents.versions.view',
+    'documents.versions.upload',
+    'documents.versions.download',
+    'documents.submit',
+    'documents.review',
+    'documents.approve',
+    'documents.publish',
     'drawings.view',
     'drawings.upload',
+    'drawings.create',
     'drawings.update',
+    'transmittals.view',
+    'transmittals.create',
+    'transmittals.issue',
     'takeoff.view',
     'takeoff.create',
     'takeoff.update',
@@ -472,8 +586,20 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'documents.update',
     'documents.link',
     'documents.storage_usage',
+    'documents.versions.view',
+    'documents.versions.upload',
+    'documents.versions.download',
+    'documents.submit',
+    'documents.review',
+    'documents.approve',
+    'documents.publish',
     'drawings.view',
     'drawings.upload',
+    'drawings.create',
+    'drawings.update',
+    'transmittals.view',
+    'transmittals.create',
+    'transmittals.issue',
     'takeoff.view',
     'takeoff.create',
     'takeoff.update',
@@ -503,8 +629,11 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'documents.view',
     'documents.upload',
     'documents.download',
+    'documents.versions.view',
+    'documents.versions.download',
     'documents.link',
     'drawings.view',
+    'transmittals.view',
     'takeoff.view',
     'takeoff.create',
     'takeoff.update',
@@ -538,9 +667,20 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'documents.restore',
     'documents.link',
     'documents.storage_usage',
+    'documents.versions.view',
+    'documents.versions.upload',
+    'documents.versions.download',
+    'documents.submit',
+    'documents.review',
+    'documents.approve',
+    'documents.publish',
     'drawings.view',
     'drawings.upload',
+    'drawings.create',
     'drawings.update',
+    'transmittals.view',
+    'transmittals.create',
+    'transmittals.issue',
     'takeoff.view',
     'estimates.view',
     'boq.view',
@@ -566,8 +706,11 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.wbs.view',
     'documents.view',
     'documents.download',
+    'documents.versions.view',
+    'documents.versions.download',
     'documents.storage_usage',
     'drawings.view',
+    'transmittals.view',
     'takeoff.view',
     'estimates.view',
     'boq.view',
@@ -590,7 +733,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.wbs.view',
     'documents.view',
     'documents.download',
+    'documents.versions.view',
     'drawings.view',
+    'transmittals.view',
     'reports.view',
   ],
 };
@@ -986,6 +1131,9 @@ export interface DocumentSummary {
   uploadStatus: DocumentUploadStatus | string;
   securityScanStatus: DocumentScanStatus | string;
   uploadedById: string;
+  latestVersionId?: string | null;
+  currentPublishedVersionId?: string | null;
+  currentRevisionCode?: string | null;
   archivedAt?: string | null;
   metadata?: Record<string, any> | null;
   createdAt: string;
@@ -997,6 +1145,10 @@ export interface DocumentSummary {
   };
   spatialLinkCount?: number;
   workPackageLinkCount?: number;
+  versionCount?: number;
+  drawingMetadata?: DrawingMetadataSummary | null;
+  currentPublishedVersion?: DocumentVersionSummary | null;
+  latestVersion?: DocumentVersionSummary | null;
 }
 
 export interface DocumentDetails extends DocumentSummary {
@@ -1019,6 +1171,250 @@ export interface DocumentDetails extends DocumentSummary {
       code: string;
     };
   }>;
+  versions?: DocumentVersionSummary[];
+}
+
+export interface DocumentVersionSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  documentId: string;
+  versionNumber: number;
+  revisionCode: string;
+  title: string;
+  description?: string | null;
+  originalFilename: string;
+  fileFormat: DocumentFileFormat | string;
+  mimeType: string;
+  fileSizeBytes: string;
+  storageObjectKey: string;
+  checksumSha256: string;
+  uploadStatus: DocumentUploadStatus | string;
+  securityScanStatus: DocumentScanStatus | string;
+  workflowStatus: DocumentWorkflowStatus | string;
+  changeNote?: string | null;
+  uploadedById: string;
+  uploadedBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  publishedAt?: string | null;
+  supersededAt?: string | null;
+  archivedAt?: string | null;
+  spatialLinks?: Array<{
+    id: string;
+    spatialNodeId: string;
+    spatialNode?: {
+      id: string;
+      name: string;
+      code?: string | null;
+      nodeType: string;
+    };
+  }>;
+  workPackageLinks?: Array<{
+    id: string;
+    workPackageId: string;
+    workPackage?: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  }>;
+  reviewCount?: number;
+}
+
+export interface DrawingMetadataSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  documentId: string;
+  drawingNumber: string;
+  drawingTitle: string;
+  discipline: DocumentDiscipline | string;
+  drawingType: DrawingType | string;
+  originator?: string | null;
+  sheetNumber?: string | null;
+  sheetSize: SheetSize | string;
+  declaredScale?: string | null;
+  issuePurpose: IssuePurpose | string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  document?: DocumentSummary;
+  currentRevisionCode?: string;
+  currentPublishedVersion?: DocumentVersionSummary | null;
+  latestVersion?: DocumentVersionSummary | null;
+  workflowStatus?: DocumentWorkflowStatus | string;
+}
+
+export interface DocumentReviewSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  documentId: string;
+  versionId: string;
+  documentVersionId?: string;
+  assignedReviewerId: string;
+  requestedById: string;
+  status: ReviewStatus | string;
+  dueAt?: string | null;
+  comments?: string | null;
+  decisionNote?: string | null;
+  decidedAt?: string | null;
+  completedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  document?: DocumentSummary;
+  version?: DocumentVersionSummary;
+  assignedReviewer?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  requestedBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+}
+
+export interface TransmittalRecipient {
+  name: string;
+  email: string;
+  organization?: string;
+  role?: string;
+}
+
+export interface TransmittalItemSummary {
+  id: string;
+  transmittalId: string;
+  documentId: string;
+  documentVersionId: string;
+  drawingNumber?: string | null;
+  documentReference: string;
+  revisionCode: string;
+  title: string;
+  fileFormat: string;
+  sheetSize?: string | null;
+  declaredScale?: string | null;
+  createdAt: string;
+}
+
+export interface TransmittalSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  reference: string;
+  subject: string;
+  senderUserId: string;
+  authorizedRecipients: TransmittalRecipient[];
+  recipientsCount?: number;
+  issuePurpose: IssuePurpose | string;
+  issueDate: string;
+  status: TransmittalStatus | string;
+  notes?: string | null;
+  createdById: string;
+  issuedAt?: string | null;
+  cancelledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sender?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  createdBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  itemCount?: number;
+  items?: TransmittalItemSummary[];
+}
+
+export interface VersionComparisonDiff {
+  documentId: string;
+  fromVersion: DocumentVersionSummary;
+  toVersion: DocumentVersionSummary;
+  isChecksumIdentical: boolean;
+  fileSizeDifferenceBytes: number;
+  fileFormatChanged: boolean;
+  metadataDifferences: Record<string, { from: any; to: any }>;
+  spatialDifferences: {
+    added: Array<{ id: string; name: string }>;
+    removed: Array<{ id: string; name: string }>;
+    retained: Array<{ id: string; name: string }>;
+  };
+  workPackageDifferences: {
+    added: Array<{ id: string; code: string; name: string }>;
+    removed: Array<{ id: string; code: string; name: string }>;
+    retained: Array<{ id: string; code: string; name: string }>;
+  };
+}
+
+export interface CreateDocumentVersionDto {
+  revisionCode: string;
+  title?: string;
+  description?: string;
+  changeNote?: string;
+  declaredScale?: string;
+  spatialNodeIds?: string[];
+  workPackageIds?: string[];
+}
+
+export interface CreateReviewRequestDto {
+  versionId: string;
+  assignedReviewerId: string;
+  dueAt?: string;
+  comments?: string;
+}
+
+export interface SubmitReviewDecisionDto {
+  decision: ReviewDecision;
+  comments?: string;
+  decisionNote?: string;
+}
+
+export interface CreateDrawingMetadataDto {
+  documentId: string;
+  drawingNumber: string;
+  drawingTitle: string;
+  discipline: DocumentDiscipline | string;
+  drawingType: DrawingType | string;
+  originator?: string;
+  sheetNumber?: string;
+  sheetSize: SheetSize | string;
+  declaredScale?: string;
+  issuePurpose: IssuePurpose | string;
+}
+
+export interface UpdateDrawingMetadataDto {
+  drawingNumber?: string;
+  drawingTitle?: string;
+  discipline?: DocumentDiscipline | string;
+  drawingType?: DrawingType | string;
+  originator?: string;
+  sheetNumber?: string;
+  sheetSize?: SheetSize | string;
+  declaredScale?: string;
+  issuePurpose?: IssuePurpose | string;
+  status?: string;
+}
+
+export interface CreateTransmittalDto {
+  reference: string;
+  subject: string;
+  senderUserId?: string;
+  authorizedRecipients: TransmittalRecipient[];
+  issuePurpose: IssuePurpose | string;
+  issueDate?: string;
+  notes?: string;
+  versionIds: string[];
 }
 
 export interface DocumentUploadSessionSummary {

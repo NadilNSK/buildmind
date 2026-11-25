@@ -189,6 +189,13 @@ export class DocumentQueryDto {
   limit?: number = 20;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+
+  @IsOptional()
   @IsString()
   sortBy?: string;
 

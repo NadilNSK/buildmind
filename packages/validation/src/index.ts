@@ -17,6 +17,13 @@ import {
   DocumentFileFormat,
   DocumentUploadStatus,
   DocumentScanStatus,
+  DocumentWorkflowStatus,
+  DrawingType,
+  SheetSize,
+  IssuePurpose,
+  ReviewDecision,
+  ReviewStatus,
+  TransmittalStatus,
 } from '@buildmind/shared-types';
 
 // ==========================================
@@ -306,6 +313,86 @@ export const documentQuerySchema = paginationQuerySchema.extend({
 });
 
 // ==========================================
+// Phase 3C Document Control & Drawing Schemas
+// ==========================================
+
+export const documentWorkflowStatusSchema = z.nativeEnum(DocumentWorkflowStatus);
+export const drawingTypeSchema = z.nativeEnum(DrawingType);
+export const sheetSizeSchema = z.nativeEnum(SheetSize);
+export const issuePurposeSchema = z.nativeEnum(IssuePurpose);
+export const reviewDecisionSchema = z.nativeEnum(ReviewDecision);
+export const reviewStatusSchema = z.nativeEnum(ReviewStatus);
+export const transmittalStatusSchema = z.nativeEnum(TransmittalStatus);
+
+export const revisionCodeRegex = /^[A-Za-z0-9_.\-]+$/;
+
+export const createDocumentVersionSchema = z.object({
+  revisionCode: z
+    .string()
+    .min(1, 'Revision code cannot be empty')
+    .max(20, 'Revision code too long')
+    .regex(revisionCodeRegex, 'Revision code must be alphanumeric with dots, dashes or underscores'),
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  changeNote: z.string().max(2000).optional().nullable(),
+  declaredScale: z.string().max(50).optional().nullable(),
+  spatialNodeIds: z.array(uuidSchema).optional(),
+  workPackageIds: z.array(uuidSchema).optional(),
+});
+
+export const createReviewRequestSchema = z.object({
+  versionId: uuidSchema,
+  assignedReviewerId: uuidSchema.optional().nullable(),
+  dueAt: z.string().datetime().optional().nullable(),
+  comments: z.string().max(2000).optional().nullable(),
+});
+
+export const submitReviewDecisionSchema = z.object({
+  decision: z.nativeEnum(ReviewDecision),
+  comments: z.string().max(2000).optional().nullable(),
+  decisionNote: z.string().max(2000).optional().nullable(),
+});
+
+export const createDrawingMetadataSchema = z.object({
+  documentId: uuidSchema,
+  drawingNumber: z.string().min(1, 'Drawing number is required').max(100),
+  drawingTitle: z.string().min(1, 'Drawing title is required').max(255),
+  discipline: z.nativeEnum(DocumentDiscipline).default(DocumentDiscipline.ARCHITECTURE),
+  drawingType: z.nativeEnum(DrawingType).default(DrawingType.FLOOR_PLAN),
+  originator: z.string().max(100).optional().nullable(),
+  sheetNumber: z.string().max(50).optional().nullable(),
+  sheetSize: z.nativeEnum(SheetSize).default(SheetSize.A1),
+  declaredScale: z.string().max(50).optional().nullable(),
+  issuePurpose: z.nativeEnum(IssuePurpose).default(IssuePurpose.FOR_INFORMATION),
+});
+
+export const updateDrawingMetadataSchema = createDrawingMetadataSchema.partial().extend({
+  status: z.string().max(50).optional(),
+});
+
+export const transmittalRecipientSchema = z.object({
+  name: z.string().min(1, 'Recipient name is required'),
+  email: z.string().email('Valid recipient email is required'),
+  organization: z.string().max(100).optional(),
+  role: z.string().max(100).optional(),
+});
+
+export const createTransmittalSchema = z.object({
+  reference: z
+    .string()
+    .min(1, 'Transmittal reference is required')
+    .max(100)
+    .regex(/^[A-Za-z0-9_.\-]+$/, 'Reference must be alphanumeric with dots, dashes or underscores'),
+  subject: z.string().min(1, 'Subject is required').max(255),
+  senderUserId: uuidSchema.optional(),
+  authorizedRecipients: z.array(transmittalRecipientSchema).min(1, 'At least one recipient is required'),
+  issuePurpose: z.nativeEnum(IssuePurpose).default(IssuePurpose.FOR_INFORMATION),
+  issueDate: z.string().datetime().optional(),
+  notes: z.string().max(2000).optional().nullable(),
+  versionIds: z.array(uuidSchema).min(1, 'At least one document version must be included in transmittal'),
+});
+
+// ==========================================
 // 5. Schema Inferred Types
 // ==========================================
 
@@ -339,3 +426,9 @@ export type CompleteUploadSessionInput = z.infer<typeof completeUploadSessionSch
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
 export type UpdateDocumentLinksInput = z.infer<typeof updateDocumentLinksSchema>;
 export type DocumentQueryInput = z.infer<typeof documentQuerySchema>;
+export type CreateDocumentVersionInput = z.infer<typeof createDocumentVersionSchema>;
+export type CreateReviewRequestInput = z.infer<typeof createReviewRequestSchema>;
+export type SubmitReviewDecisionInput = z.infer<typeof submitReviewDecisionSchema>;
+export type CreateDrawingMetadataInput = z.infer<typeof createDrawingMetadataSchema>;
+export type UpdateDrawingMetadataInput = z.infer<typeof updateDrawingMetadataSchema>;
+export type CreateTransmittalInput = z.infer<typeof createTransmittalSchema>;

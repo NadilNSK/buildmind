@@ -6,7 +6,7 @@ import { ArrowLeft, Building2, MapPin, Calendar, Coins, ShieldCheck, Ruler } fro
 import { ProjectStatus, ProjectType } from '@buildmind/shared-types';
 
 interface ProjectHeaderProps {
-  project: {
+  project?: {
     id: string;
     code: string;
     name: string;
@@ -24,7 +24,8 @@ interface ProjectHeaderProps {
     measurementStandard?: string | null;
     measurementUnitSystem?: string | null;
     contractStandard?: string | null;
-  };
+  } | null;
+  loading?: boolean;
 }
 
 const STATUS_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {
@@ -42,7 +43,13 @@ const STATUS_COLOR_MAP: Record<string, { bg: string; text: string; border: strin
   ARCHIVED: { bg: 'bg-[#64748B]/10', text: 'text-[#94A3B8]', border: 'border-[#64748B]/30' },
 };
 
-export function ProjectHeader({ project }: ProjectHeaderProps) {
+export function ProjectHeader({ project, loading }: ProjectHeaderProps) {
+  if (loading || !project) {
+    return (
+      <div className="h-20 rounded-xl bg-[#111C35]/50 animate-pulse border border-[#1E2E4E]/50" />
+    );
+  }
+
   const statusColors = STATUS_COLOR_MAP[project.status] || {
     bg: 'bg-[#1E2E4E]',
     text: 'text-[#CBD5E1]',

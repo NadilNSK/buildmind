@@ -72,6 +72,9 @@ export default function ProjectDocumentsPage() {
   const canUpdate = hasPermission('documents.update');
   const canArchive = hasPermission('documents.archive');
   const canViewStorage = hasPermission('documents.storage_usage');
+  const canUploadRevision = hasPermission('documents.versions.upload');
+  const canApprove = hasPermission('documents.approve');
+  const canPublish = hasPermission('documents.publish');
 
   // Load project details
   useEffect(() => {
@@ -231,15 +234,18 @@ export default function ProjectDocumentsPage() {
             </div>
 
             <div className="p-4 rounded-xl bg-[#0D1527] border border-[#1E2E4E] flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-[#10B981]">
+              <div className="w-10 h-10 rounded-lg bg-[#A855F7]/10 border border-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
                 <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider block">
-                  Security Scanning
+                  Integrity & Security
                 </span>
-                <span className="text-base font-bold text-[#10B981] flex items-center gap-1">
-                  <span>100% Clean</span>
+                <span className="text-sm font-bold text-[#A855F7] flex items-center gap-1">
+                  <span>SHA-256 Verified</span>
+                </span>
+                <span className="text-[10px] text-[#94A3B8] block">
+                  Antivirus: Local Dev Mode
                 </span>
               </div>
             </div>
@@ -365,7 +371,8 @@ export default function ProjectDocumentsPage() {
                   {documents.map((doc) => (
                     <tr
                       key={doc.id}
-                      className={`hover:bg-[#111C35]/50 transition-colors ${
+                      onClick={() => handleOpenDetails(doc.id)}
+                      className={`hover:bg-[#111C35]/50 transition-colors cursor-pointer ${
                         doc.archivedAt ? 'opacity-60 bg-[#111C35]/20' : ''
                       }`}
                     >
@@ -445,7 +452,7 @@ export default function ProjectDocumentsPage() {
                       </td>
 
                       {/* Action Buttons */}
-                      <td className="py-3 px-4 whitespace-nowrap text-right">
+                      <td className="py-3 px-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           {canDownload && (
                             <button
@@ -513,6 +520,9 @@ export default function ProjectDocumentsPage() {
           canEdit={canUpdate}
           canArchive={canArchive}
           canDownload={canDownload}
+          canUploadRevision={canUploadRevision}
+          canApprove={canApprove}
+          canPublish={canPublish}
         />
       </div>
     </AppShell>

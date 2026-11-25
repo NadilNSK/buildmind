@@ -10,6 +10,9 @@ import {
   Settings,
   Users,
   Files,
+  Compass,
+  SendHorizontal,
+  ClipboardCheck,
 } from 'lucide-react';
 
 interface ProjectNavProps {
@@ -18,6 +21,9 @@ interface ProjectNavProps {
   spatialNodeCount?: number;
   workPackageCount?: number;
   documentCount?: number;
+  drawingCount?: number;
+  transmittalCount?: number;
+  reviewCount?: number;
 }
 
 export function ProjectNav({
@@ -26,6 +32,9 @@ export function ProjectNav({
   spatialNodeCount,
   workPackageCount,
   documentCount,
+  drawingCount,
+  transmittalCount,
+  reviewCount,
 }: ProjectNavProps) {
   const pathname = usePathname();
 
@@ -41,6 +50,27 @@ export function ProjectNav({
       href: `/projects/${projectId}/documents`,
       icon: Files,
       count: documentCount,
+      exact: false,
+    },
+    {
+      label: 'Drawings',
+      href: `/projects/${projectId}/drawings`,
+      icon: Compass,
+      count: drawingCount,
+      exact: false,
+    },
+    {
+      label: 'Transmittals',
+      href: `/projects/${projectId}/transmittals`,
+      icon: SendHorizontal,
+      count: transmittalCount,
+      exact: false,
+    },
+    {
+      label: 'Reviews',
+      href: `/projects/${projectId}/reviews`,
+      icon: ClipboardCheck,
+      count: reviewCount,
       exact: false,
     },
     {

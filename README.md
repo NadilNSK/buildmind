@@ -122,4 +122,14 @@ cd services/ai-worker && uvicorn app.main:app --port 8000 --reload
 - **Document Control Workspace UI:** Next.js 15 interface (`/projects/[projectId]/documents`) featuring live storage utilization KPI cards, multi-facet filtering (search, category, discipline, format, archived), `DocumentUploadModal` with drag-and-drop progress tracking, and `DocumentDetailsDrawer` with cryptographic hash verification, metadata editing, and hierarchy link management.
 - **Automated Verification:** 20 backend integration tests (`document-workspace.e2e-spec.ts`) and 18 Playwright browser acceptance scenarios (`playwright-phase3b.test.cjs`) passing 100% with zero regressions.
 
+### Phase 3C: Document Control, Drawing Revision Management, Review Workflow & Transmittals
+- **Document Version Architecture (`DocumentVersion`):** Immutable version tree, flexible revision numbering (numeric `01`, `02` or alphanumeric `A`, `P01`), parent version lineage (`parentVersionId`), cryptographic SHA-256 integrity hashes, and per-document revision code uniqueness.
+- **Dedicated Drawing Register (`DrawingMetadata`):** Automatic drawing registration upon upload with drawing numbers, title blocks, disciplines (`ARCHITECTURAL`, `STRUCTURAL`, `MEP`), drawing types, sheet sizes (`A0`–`A4`), declared scales, and dedicated register UI (`/projects/[projectId]/drawings`).
+- **Engineering Review Workflow (`DocumentReview`):** 7-state revision lifecycle (`DRAFT` → `SUBMITTED` → `UNDER_REVIEW` → `APPROVED` / `CHANGES_REQUESTED` / `REJECTED` → `PUBLISHED` → `SUPERSEDED` / `WITHDRAWN`) with review queue register (`/projects/[projectId]/reviews`).
+- **Segregation of Duties Enforcement:** Strict architectural barrier preventing revision uploaders from approving or evaluating their own submissions (`uploaderId !== reviewerUserId`), returning HTTP 403 Forbidden.
+- **Atomic Publication Invariant:** Transactional publication of approved revisions where the prior published revision is atomically transitioned to `SUPERSEDED`, guaranteeing a single source of truth for active tender and construction sets.
+- **Cryptographic Revision Diff Engine:** Side-by-side revision comparison modal (`RevisionCompareModal`) computing SHA-256 digest equality, byte size deltas, metadata differences, and spatial (SBS) / work package (WBS) association changes.
+- **Formal Document Transmittals (`DocumentTransmittal` & `TransmittalItem`):** Dedicated transmittal package register (`/projects/[projectId]/transmittals`), multi-recipient assignment, and immutable line item snapshot freezing upon issuance.
+- **Automated Verification:** 23 backend integration scenarios (`revision-workflow.e2e-spec.ts`, 112 total backend suite tests passing) and 21 Playwright browser acceptance scenarios (`playwright-phase3c.test.cjs`, 33/33 assertions passing 100%) with zero regressions.
+
 

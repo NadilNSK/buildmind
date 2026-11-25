@@ -3,8 +3,10 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { FileValidatorService } from '../storage/file-validator.service';
@@ -15,8 +17,20 @@ import {
   DocumentFileFormat,
   DocumentUploadStatus,
   DocumentScanStatus,
+  DocumentWorkflowStatus,
+  DrawingType,
+  SheetSize,
+  IssuePurpose,
+  ReviewDecision,
+  ReviewStatus,
+  TransmittalStatus,
   DocumentSummary,
   DocumentDetails,
+  DocumentVersionSummary,
+  DrawingMetadataSummary,
+  DocumentReviewSummary,
+  TransmittalSummary,
+  VersionComparisonDiff,
   DocumentUploadSessionSummary,
   StorageUsageSummary,
 } from '@buildmind/shared-types';
@@ -26,7 +40,15 @@ import {
   UpdateDocumentDto,
   UpdateDocumentLinksDto,
   DocumentQueryDto,
-} from './dto/document.dto';
+  CreateVersionDto,
+  SubmitReviewDto,
+  ReviewDecisionDto,
+  CreateDrawingDto,
+  UpdateDrawingDto,
+  DrawingQueryDto,
+  CreateTransmittalDto,
+  TransmittalQueryDto,
+} from './dto';
 
 @Injectable()
 export class DocumentsService {
@@ -74,6 +96,9 @@ export class DocumentsService {
       uploadStatus: doc.uploadStatus as DocumentUploadStatus,
       securityScanStatus: doc.securityScanStatus as DocumentScanStatus,
       uploadedById: doc.uploadedById,
+      latestVersionId: doc.latestVersionId,
+      currentPublishedVersionId: doc.currentPublishedVersionId,
+      currentRevisionCode: doc.currentRevisionCode || '01',
       archivedAt: doc.archivedAt ? doc.archivedAt.toISOString() : null,
       metadata: doc.metadata,
       createdAt: doc.createdAt.toISOString(),
@@ -88,6 +113,176 @@ export class DocumentsService {
       spatialLinkCount: doc._count?.spatialLinks ?? (doc.spatialLinks ? doc.spatialLinks.length : 0),
       workPackageLinkCount:
         doc._count?.workPackageLinks ?? (doc.workPackageLinks ? doc.workPackageLinks.length : 0),
+      versionCount: doc._count?.versions ?? (doc.versions ? doc.versions.length : 1),
+      drawingMetadata: doc.drawingMetadata ? this.mapDrawing(doc.drawingMetadata) : null,
+      currentPublishedVersion: doc.currentPublishedVersion
+        ? this.mapVersion(doc.currentPublishedVersion)
+        : null,
+      latestVersion: doc.latestVersion ? this.mapVersion(doc.latestVersion) : null,
+    };
+  }
+
+  public mapVersion(v: any): DocumentVersionSummary {
+    return {
+      id: v.id,
+      organizationId: v.organizationId,
+      projectId: v.projectId,
+      documentId: v.documentId,
+      versionNumber: v.versionNumber,
+      revisionCode: v.revisionCode,
+      title: v.title,
+      description: v.description,
+      originalFilename: v.originalFilename,
+      fileFormat: v.fileFormat as DocumentFileFormat,
+      mimeType: v.mimeType,
+      fileSizeBytes: v.fileSizeBytes.toString(),
+      storageObjectKey: v.storageObjectKey,
+      checksumSha256: v.checksumSha256,
+      uploadStatus: v.uploadStatus as DocumentUploadStatus,
+      securityScanStatus: v.securityScanStatus as DocumentScanStatus,
+      workflowStatus: v.workflowStatus as DocumentWorkflowStatus,
+      uploadedById: v.uploadedById,
+      uploadedBy: v.uploadedBy
+        ? {
+            id: v.uploadedBy.id,
+            email: v.uploadedBy.email,
+            fullName: v.uploadedBy.fullName,
+          }
+        : undefined,
+      metadata: v.metadata,
+      createdAt: v.createdAt.toISOString(),
+      submittedAt: v.submittedAt ? v.submittedAt.toISOString() : null,
+      approvedAt: v.approvedAt ? v.approvedAt.toISOString() : null,
+      publishedAt: v.publishedAt ? v.publishedAt.toISOString() : null,
+      supersededAt: v.supersededAt ? v.supersededAt.toISOString() : null,
+      archivedAt: v.archivedAt ? v.archivedAt.toISOString() : null,
+      spatialLinks: v.spatialLinks?.map((sl: any) => ({
+        id: sl.id,
+        spatialNodeId: sl.spatialNodeId,
+        spatialNode: sl.spatialNode,
+      })),
+      workPackageLinks: v.workPackageLinks?.map((wl: any) => ({
+        id: wl.id,
+        workPackageId: wl.workPackageId,
+        workPackage: wl.workPackage,
+      })),
+      reviewCount: v._count?.reviews ?? (v.reviews ? v.reviews.length : 0),
+    };
+  }
+
+  public mapDrawing(d: any): DrawingMetadataSummary {
+    return {
+      id: d.id,
+      organizationId: d.organizationId,
+      projectId: d.projectId,
+      documentId: d.documentId,
+      drawingNumber: d.drawingNumber,
+      drawingTitle: d.drawingTitle,
+      discipline: d.discipline as DocumentDiscipline,
+      drawingType: d.drawingType as DrawingType,
+      originator: d.originator,
+      sheetNumber: d.sheetNumber,
+      sheetSize: d.sheetSize as SheetSize,
+      declaredScale: d.declaredScale,
+      issuePurpose: d.issuePurpose as IssuePurpose,
+      status: d.status,
+      createdAt: d.createdAt.toISOString(),
+      updatedAt: d.updatedAt.toISOString(),
+      document: d.document ? this.mapDocument(d.document) : undefined,
+      currentRevisionCode: d.document?.currentRevisionCode || '01',
+      currentPublishedVersion: d.document?.currentPublishedVersion
+        ? this.mapVersion(d.document.currentPublishedVersion)
+        : null,
+      latestVersion: d.document?.latestVersion ? this.mapVersion(d.document.latestVersion) : null,
+      workflowStatus:
+        (d.document?.currentPublishedVersion?.workflowStatus as DocumentWorkflowStatus) ||
+        (d.document?.latestVersion?.workflowStatus as DocumentWorkflowStatus) ||
+        DocumentWorkflowStatus.PUBLISHED,
+    };
+  }
+
+  public mapReview(r: any): DocumentReviewSummary {
+    return {
+      id: r.id,
+      organizationId: r.organizationId,
+      projectId: r.projectId,
+      documentId: r.documentId,
+      versionId: r.versionId,
+      assignedReviewerId: r.assignedReviewerId,
+      requestedById: r.requestedById,
+      status: r.status as ReviewStatus,
+      dueAt: r.dueAt ? r.dueAt.toISOString() : null,
+      comments: r.comments,
+      decisionNote: r.decisionNote,
+      completedAt: r.completedAt ? r.completedAt.toISOString() : null,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      document: r.document ? this.mapDocument(r.document) : undefined,
+      version: r.version ? this.mapVersion(r.version) : undefined,
+      assignedReviewer: r.assignedReviewer
+        ? {
+            id: r.assignedReviewer.id,
+            email: r.assignedReviewer.email,
+            fullName: r.assignedReviewer.fullName,
+          }
+        : undefined,
+      requestedBy: r.requestedBy
+        ? {
+            id: r.requestedBy.id,
+            email: r.requestedBy.email,
+            fullName: r.requestedBy.fullName,
+          }
+        : undefined,
+    };
+  }
+
+  public mapTransmittal(t: any): TransmittalSummary {
+    return {
+      id: t.id,
+      organizationId: t.organizationId,
+      projectId: t.projectId,
+      reference: t.reference,
+      subject: t.subject,
+      senderUserId: t.senderUserId,
+      authorizedRecipients: t.authorizedRecipients || [],
+      issuePurpose: t.issuePurpose as IssuePurpose,
+      issueDate: t.issueDate.toISOString(),
+      status: t.status as TransmittalStatus,
+      notes: t.notes,
+      createdById: t.createdById,
+      issuedAt: t.issuedAt ? t.issuedAt.toISOString() : null,
+      cancelledAt: t.cancelledAt ? t.cancelledAt.toISOString() : null,
+      createdAt: t.createdAt.toISOString(),
+      updatedAt: t.updatedAt.toISOString(),
+      sender: t.sender
+        ? {
+            id: t.sender.id,
+            email: t.sender.email,
+            fullName: t.sender.fullName,
+          }
+        : undefined,
+      createdBy: t.createdBy
+        ? {
+            id: t.createdBy.id,
+            email: t.createdBy.email,
+            fullName: t.createdBy.fullName,
+          }
+        : undefined,
+      itemCount: t._count?.items ?? (t.items ? t.items.length : 0),
+      items: t.items?.map((item: any) => ({
+        id: item.id,
+        transmittalId: item.transmittalId,
+        documentId: item.documentId,
+        documentVersionId: item.documentVersionId,
+        drawingNumber: item.drawingNumber,
+        documentReference: item.documentReference,
+        revisionCode: item.revisionCode,
+        title: item.title,
+        fileFormat: item.fileFormat,
+        sheetSize: item.sheetSize,
+        declaredScale: item.declaredScale,
+        createdAt: item.createdAt.toISOString(),
+      })),
     };
   }
 
@@ -403,8 +598,10 @@ export class DocumentsService {
     // Cleanup quarantine object
     await this.storage.removeObject(this.storage.documentsBucket, session.storageKey);
 
-    // Transactionally create document and links
+    // Transactionally create document, initial version, and links
     const document = await this.prisma.$transaction(async (tx) => {
+      const initialVersionId = crypto.randomUUID();
+
       const doc = await tx.document.create({
         data: {
           id: documentId,
@@ -428,7 +625,43 @@ export class DocumentsService {
         },
       });
 
-      // Create spatial links
+      // Create initial DocumentVersion (v1, rev '01', PUBLISHED)
+      await tx.documentVersion.create({
+        data: {
+          id: initialVersionId,
+          organizationId,
+          projectId,
+          documentId: doc.id,
+          versionNumber: 1,
+          revisionCode: '01',
+          title: doc.title,
+          description: doc.description,
+          originalFilename: doc.originalFilename,
+          fileFormat: doc.fileFormat,
+          mimeType: doc.mimeType,
+          fileSizeBytes: doc.fileSizeBytes,
+          storageObjectKey: doc.storageObjectKey,
+          checksumSha256: doc.checksumSha256,
+          uploadStatus: DocumentUploadStatus.READY,
+          securityScanStatus: doc.securityScanStatus,
+          workflowStatus: DocumentWorkflowStatus.PUBLISHED,
+          uploadedById: userId,
+          createdAt: new Date(),
+          publishedAt: new Date(),
+        },
+      });
+
+      // Point document to initial version
+      await tx.document.update({
+        where: { id: doc.id },
+        data: {
+          latestVersionId: initialVersionId,
+          currentPublishedVersionId: initialVersionId,
+          currentRevisionCode: '01',
+        },
+      });
+
+      // Create spatial links for document & version
       if (spatialNodeIds.length > 0) {
         await tx.documentSpatialLink.createMany({
           data: spatialNodeIds.map((nodeId) => ({
@@ -436,15 +669,49 @@ export class DocumentsService {
             spatialNodeId: nodeId,
           })),
         });
+        await tx.documentVersionSpatialLink.createMany({
+          data: spatialNodeIds.map((nodeId) => ({
+            versionId: initialVersionId,
+            spatialNodeId: nodeId,
+          })),
+        });
       }
 
-      // Create work package links
+      // Create work package links for document & version
       if (workPackageIds.length > 0) {
         await tx.documentWorkPackageLink.createMany({
           data: workPackageIds.map((pkgId) => ({
             documentId: doc.id,
             workPackageId: pkgId,
           })),
+        });
+        await tx.documentVersionWorkPackageLink.createMany({
+          data: workPackageIds.map((pkgId) => ({
+            versionId: initialVersionId,
+            workPackageId: pkgId,
+          })),
+        });
+      }
+
+      // Seed drawing register if drawing category or CAD format
+      const isDrawing =
+        category.includes('DRAWING') ||
+        ['DWG', 'DXF', 'PDF'].includes(format.toUpperCase());
+
+      if (isDrawing) {
+        await tx.drawingMetadata.create({
+          data: {
+            organizationId,
+            projectId,
+            documentId: doc.id,
+            drawingNumber: reference,
+            drawingTitle: title,
+            discipline: discipline || 'ARCHITECTURE',
+            drawingType: 'FLOOR_PLAN',
+            sheetSize: 'A1',
+            issuePurpose: 'FOR_INFORMATION',
+            status: 'ACTIVE',
+          },
         });
       }
 
@@ -537,7 +804,7 @@ export class DocumentsService {
     await this.getVerifiedProject(organizationId, projectId);
 
     const page = Math.max(1, Number(query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const limit = Math.min(100, Math.max(1, Number(query.limit || query.pageSize) || 20));
     const skip = (page - 1) * limit;
 
     const where: any = {
@@ -633,6 +900,34 @@ export class DocumentsService {
         uploadedBy: {
           select: { id: true, email: true, fullName: true },
         },
+        drawingMetadata: true,
+        currentPublishedVersion: {
+          include: {
+            uploadedBy: { select: { id: true, email: true, fullName: true } },
+          },
+        },
+        latestVersion: {
+          include: {
+            uploadedBy: { select: { id: true, email: true, fullName: true } },
+          },
+        },
+        versions: {
+          include: {
+            uploadedBy: { select: { id: true, email: true, fullName: true } },
+            spatialLinks: {
+              include: {
+                spatialNode: { select: { id: true, name: true, code: true, nodeType: true } },
+              },
+            },
+            workPackageLinks: {
+              include: {
+                workPackage: { select: { id: true, name: true, code: true } },
+              },
+            },
+            _count: { select: { reviews: true } },
+          },
+          orderBy: { versionNumber: 'desc' },
+        },
         spatialLinks: {
           include: {
             spatialNode: {
@@ -657,6 +952,7 @@ export class DocumentsService {
     const base = this.mapDocument(doc);
     return {
       ...base,
+      versions: doc.versions?.map((v: any) => this.mapVersion(v)),
       spatialLinks: doc.spatialLinks.map((sl) => ({
         id: sl.id,
         spatialNodeId: sl.spatialNodeId,
@@ -1001,5 +1297,1422 @@ export class DocumentsService {
         bytes: stats.bytes.toString(),
       })),
     };
+  }
+
+  // ==========================================
+  // Phase 3C: Version Lifecycle & Management
+  // ==========================================
+
+  /**
+   * Uploads and attaches a new immutable version/revision to an existing document
+   */
+  async createVersion(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    userId: string,
+    dto: CreateVersionDto,
+    fileBuffer?: Buffer,
+    fileMeta?: { originalname: string; mimetype: string },
+  ): Promise<DocumentVersionSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const document = await this.prisma.document.findFirst({
+      where: { id: documentId, projectId, organizationId },
+      include: {
+        latestVersion: true,
+        currentPublishedVersion: true,
+      },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    // Check revisionCode uniqueness within this document
+    const existingRevision = await this.prisma.documentVersion.findUnique({
+      where: {
+        documentId_revisionCode: {
+          documentId,
+          revisionCode: dto.revisionCode,
+        },
+      },
+    });
+
+    if (existingRevision) {
+      throw new ConflictException(
+        `Revision code "${dto.revisionCode}" already exists for this document`,
+      );
+    }
+
+    // Determine sequential version number
+    const maxVersion = await this.prisma.documentVersion.findFirst({
+      where: { documentId },
+      orderBy: { versionNumber: 'desc' },
+      select: { versionNumber: true },
+    });
+    const nextVersionNumber = (maxVersion?.versionNumber ?? 0) + 1;
+
+    let storageKey: string;
+    let checksumSha256: string;
+    let fileSizeBytes: bigint;
+    let originalFilename: string;
+    let mimeType: string;
+    let fileFormat: DocumentFileFormat;
+    let scanStatus: DocumentScanStatus = DocumentScanStatus.NOT_SCANNED;
+
+    if (fileBuffer && fileMeta) {
+      originalFilename = this.validator.sanitizeFilename(fileMeta.originalname);
+      const extValidation = this.validator.validateExtension(originalFilename);
+      fileFormat = extValidation.format;
+      mimeType = fileMeta.mimetype || this.validator.getMimeTypeForFormat(fileFormat);
+
+      this.validator.validateFileSize(fileBuffer.length);
+      const isValidBytes = this.validator.validateMagicBytes(fileBuffer, fileFormat);
+      if (!isValidBytes) {
+        throw new BadRequestException(
+          `File magic byte signature does not match declared format ${fileFormat}`,
+        );
+      }
+
+      checksumSha256 = this.storage.computeSha256(fileBuffer);
+      fileSizeBytes = BigInt(fileBuffer.length);
+      scanStatus = await this.validator.scanFile(fileBuffer);
+
+      storageKey = this.storage.getDocumentVersionKey(
+        organizationId,
+        projectId,
+        documentId,
+        nextVersionNumber,
+        originalFilename,
+      );
+
+      await this.storage.putObject(
+        this.storage.documentsBucket,
+        storageKey,
+        fileBuffer,
+        fileBuffer.length,
+        {
+          'content-type': mimeType,
+          'x-buildmind-document-id': documentId,
+          'x-buildmind-version': nextVersionNumber.toString(),
+          'x-buildmind-revision': dto.revisionCode,
+          'x-buildmind-checksum': checksumSha256,
+        },
+      );
+    } else {
+      // Inherit file reference from previous version
+      const baseVersion = document.latestVersion || document.currentPublishedVersion;
+      if (baseVersion) {
+        storageKey = baseVersion.storageObjectKey;
+        checksumSha256 = baseVersion.checksumSha256;
+        fileSizeBytes = baseVersion.fileSizeBytes;
+        originalFilename = baseVersion.originalFilename;
+        mimeType = baseVersion.mimeType;
+        fileFormat = baseVersion.fileFormat as DocumentFileFormat;
+        scanStatus = baseVersion.securityScanStatus as DocumentScanStatus;
+      } else {
+        storageKey = document.storageObjectKey;
+        checksumSha256 = document.checksumSha256;
+        fileSizeBytes = document.fileSizeBytes;
+        originalFilename = document.originalFilename;
+        mimeType = document.mimeType;
+        fileFormat = document.fileFormat as DocumentFileFormat;
+        scanStatus = document.securityScanStatus as DocumentScanStatus;
+      }
+    }
+
+    const version = await this.prisma.$transaction(async (tx) => {
+      const v = await tx.documentVersion.create({
+        data: {
+          organizationId,
+          projectId,
+          documentId,
+          versionNumber: nextVersionNumber,
+          revisionCode: dto.revisionCode,
+          title: dto.title || document.title,
+          description: dto.description !== undefined ? dto.description : document.description,
+          originalFilename,
+          fileFormat,
+          mimeType,
+          fileSizeBytes,
+          storageObjectKey: storageKey,
+          checksumSha256,
+          uploadStatus: DocumentUploadStatus.READY,
+          securityScanStatus: scanStatus,
+          workflowStatus: DocumentWorkflowStatus.DRAFT,
+          uploadedById: userId,
+          metadata: {
+            changeNote: dto.changeNote,
+            declaredScale: dto.declaredScale,
+          },
+        },
+        include: {
+          uploadedBy: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      // Spatial links
+      if (dto.spatialNodeIds && dto.spatialNodeIds.length > 0) {
+        await tx.documentVersionSpatialLink.createMany({
+          data: dto.spatialNodeIds.map((nodeId) => ({
+            versionId: v.id,
+            spatialNodeId: nodeId,
+          })),
+        });
+      }
+
+      // Work package links
+      if (dto.workPackageIds && dto.workPackageIds.length > 0) {
+        await tx.documentVersionWorkPackageLink.createMany({
+          data: dto.workPackageIds.map((pkgId) => ({
+            versionId: v.id,
+            workPackageId: pkgId,
+          })),
+        });
+      }
+
+      // Update parent document's latestVersionId (does not overwrite published version)
+      await tx.document.update({
+        where: { id: documentId },
+        data: {
+          latestVersionId: v.id,
+        },
+      });
+
+      return v;
+    });
+
+    await this.auditService.logEvent(userId, 'DOCUMENT_VERSION_CREATED', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId: version.id,
+      versionNumber: nextVersionNumber,
+      revisionCode: dto.revisionCode,
+    });
+
+    return this.mapVersion(version);
+  }
+
+  /**
+   * Lists all immutable versions for a document
+   */
+  async listVersions(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+  ): Promise<DocumentVersionSummary[]> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const doc = await this.prisma.document.findFirst({
+      where: { id: documentId, projectId, organizationId },
+    });
+    if (!doc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const versions = await this.prisma.documentVersion.findMany({
+      where: { documentId, projectId, organizationId },
+      include: {
+        uploadedBy: { select: { id: true, email: true, fullName: true } },
+        spatialLinks: {
+          include: {
+            spatialNode: { select: { id: true, name: true, code: true, nodeType: true } },
+          },
+        },
+        workPackageLinks: {
+          include: {
+            workPackage: { select: { id: true, name: true, code: true } },
+          },
+        },
+        _count: { select: { reviews: true } },
+      },
+      orderBy: { versionNumber: 'desc' },
+    });
+
+    return versions.map((v) => this.mapVersion(v));
+  }
+
+  /**
+   * Retrieves single document version details
+   */
+  async getVersion(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+  ): Promise<DocumentVersionSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+      include: {
+        uploadedBy: { select: { id: true, email: true, fullName: true } },
+        spatialLinks: {
+          include: {
+            spatialNode: { select: { id: true, name: true, code: true, nodeType: true } },
+          },
+        },
+        workPackageLinks: {
+          include: {
+            workPackage: { select: { id: true, name: true, code: true } },
+          },
+        },
+        reviews: {
+          include: {
+            assignedReviewer: { select: { id: true, email: true, fullName: true } },
+            requestedBy: { select: { id: true, email: true, fullName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: { select: { reviews: true } },
+      },
+    });
+
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    return this.mapVersion(version);
+  }
+
+  /**
+   * Streams binary file of a specific historical version
+   */
+  async getVersionDownloadStream(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+  ) {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    const stream = await this.storage.getObject(
+      this.storage.documentsBucket,
+      version.storageObjectKey,
+    );
+
+    return {
+      stream,
+      filename: version.originalFilename,
+      mimeType: version.mimeType,
+      fileSizeBytes: version.fileSizeBytes.toString(),
+      checksumSha256: version.checksumSha256,
+      revisionCode: version.revisionCode,
+    };
+  }
+
+  /**
+   * Presigned download URL for a specific historical version
+   */
+  async getVersionDownloadUrl(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+  ) {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    const expiresInSeconds = 3600;
+    const downloadUrl = await this.storage.getPresignedDownloadUrl(
+      this.storage.documentsBucket,
+      version.storageObjectKey,
+      expiresInSeconds,
+      version.originalFilename,
+    );
+
+    return {
+      downloadUrl,
+      filename: version.originalFilename,
+      expiresInSeconds,
+      revisionCode: version.revisionCode,
+    };
+  }
+
+  /**
+   * Metadata & checksum diff comparison between two versions
+   */
+  async compareVersions(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    fromVersionId: string,
+    toVersionId: string,
+  ): Promise<VersionComparisonDiff> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const [fromVersion, toVersion] = await Promise.all([
+      this.getVersion(organizationId, projectId, documentId, fromVersionId),
+      this.getVersion(organizationId, projectId, documentId, toVersionId),
+    ]);
+
+    const isChecksumIdentical = fromVersion.checksumSha256 === toVersion.checksumSha256;
+    const fileSizeDifferenceBytes =
+      Number(toVersion.fileSizeBytes) - Number(fromVersion.fileSizeBytes);
+    const fileFormatChanged = fromVersion.fileFormat !== toVersion.fileFormat;
+
+    const fromSpatialIds = new Set(fromVersion.spatialLinks?.map((s) => s.spatialNodeId) || []);
+    const toSpatialIds = new Set(toVersion.spatialLinks?.map((s) => s.spatialNodeId) || []);
+
+    const addedSpatial = (toVersion.spatialLinks || []).filter(
+      (s) => !fromSpatialIds.has(s.spatialNodeId),
+    );
+    const removedSpatial = (fromVersion.spatialLinks || []).filter(
+      (s) => !toSpatialIds.has(s.spatialNodeId),
+    );
+    const retainedSpatial = (toVersion.spatialLinks || []).filter((s) =>
+      fromSpatialIds.has(s.spatialNodeId),
+    );
+
+    const fromWbsIds = new Set(fromVersion.workPackageLinks?.map((w) => w.workPackageId) || []);
+    const toWbsIds = new Set(toVersion.workPackageLinks?.map((w) => w.workPackageId) || []);
+
+    const addedWbs = (toVersion.workPackageLinks || []).filter(
+      (w) => !fromWbsIds.has(w.workPackageId),
+    );
+    const removedWbs = (fromVersion.workPackageLinks || []).filter(
+      (w) => !toWbsIds.has(w.workPackageId),
+    );
+    const retainedWbs = (toVersion.workPackageLinks || []).filter((w) =>
+      fromWbsIds.has(w.workPackageId),
+    );
+
+    return {
+      documentId,
+      fromVersion,
+      toVersion,
+      isChecksumIdentical,
+      fileSizeDifferenceBytes,
+      fileFormatChanged,
+      metadataDifferences: {
+        revisionCode: { from: fromVersion.revisionCode, to: toVersion.revisionCode },
+        workflowStatus: { from: fromVersion.workflowStatus, to: toVersion.workflowStatus },
+        title: { from: fromVersion.title, to: toVersion.title },
+        description: { from: fromVersion.description, to: toVersion.description },
+      },
+      spatialDifferences: {
+        added: addedSpatial.map((s) => ({
+          id: s.spatialNodeId,
+          name: s.spatialNode?.name || 'Node',
+        })),
+        removed: removedSpatial.map((s) => ({
+          id: s.spatialNodeId,
+          name: s.spatialNode?.name || 'Node',
+        })),
+        retained: retainedSpatial.map((s) => ({
+          id: s.spatialNodeId,
+          name: s.spatialNode?.name || 'Node',
+        })),
+      },
+      workPackageDifferences: {
+        added: addedWbs.map((w) => ({
+          id: w.workPackageId,
+          code: w.workPackage?.code || '',
+          name: w.workPackage?.name || 'Work Package',
+        })),
+        removed: removedWbs.map((w) => ({
+          id: w.workPackageId,
+          code: w.workPackage?.code || '',
+          name: w.workPackage?.name || 'Work Package',
+        })),
+        retained: retainedWbs.map((w) => ({
+          id: w.workPackageId,
+          code: w.workPackage?.code || '',
+          name: w.workPackage?.name || 'Work Package',
+        })),
+      },
+    };
+  }
+
+  // ==========================================
+  // Phase 3C: Workflow State Machine Transitions
+  // ==========================================
+
+  /**
+   * Submits a DRAFT revision for review
+   */
+  async submitVersion(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    userId: string,
+  ): Promise<DocumentVersionSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    if (
+      version.workflowStatus !== DocumentWorkflowStatus.DRAFT &&
+      version.workflowStatus !== DocumentWorkflowStatus.CHANGES_REQUESTED
+    ) {
+      throw new BadRequestException(
+        `Cannot submit version in "${version.workflowStatus}" status. Version must be DRAFT or CHANGES_REQUESTED.`,
+      );
+    }
+
+    const updated = await this.prisma.documentVersion.update({
+      where: { id: versionId },
+      data: {
+        workflowStatus: DocumentWorkflowStatus.SUBMITTED,
+        submittedAt: new Date(),
+      },
+      include: {
+        uploadedBy: { select: { id: true, email: true, fullName: true } },
+      },
+    });
+
+    await this.auditService.logEvent(userId, 'DOCUMENT_VERSION_SUBMITTED', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId,
+      revisionCode: updated.revisionCode,
+    });
+
+    return this.mapVersion(updated);
+  }
+
+  /**
+   * Assigns reviewer and moves version to UNDER_REVIEW
+   */
+  async requestReview(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    userId: string,
+    dto: SubmitReviewDto,
+  ): Promise<DocumentReviewSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    // Verify assigned reviewer is active member of this project, or auto-assign an eligible member
+    let reviewerId = dto.assignedReviewerId;
+    if (!reviewerId) {
+      const candidate =
+        (await this.prisma.projectMember.findFirst({
+          where: { projectId, userId: { not: version.uploadedById } },
+        })) ||
+        (await this.prisma.projectMember.findFirst({
+          where: { projectId },
+        }));
+      if (!candidate) {
+        throw new BadRequestException('No eligible project members found to assign as reviewer');
+      }
+      reviewerId = candidate.userId;
+    } else {
+      const member = await this.prisma.projectMember.findFirst({
+        where: { projectId, userId: reviewerId },
+      });
+      if (!member) {
+        throw new BadRequestException('Assigned reviewer is not an active member of this project');
+      }
+    }
+
+    const review = await this.prisma.$transaction(async (tx) => {
+      // Create DocumentReview
+      const rev = await tx.documentReview.create({
+        data: {
+          organizationId,
+          projectId,
+          documentId,
+          versionId,
+          assignedReviewerId: reviewerId,
+          requestedById: userId,
+          status: ReviewStatus.PENDING,
+          dueAt: dto.dueAt ? new Date(dto.dueAt) : null,
+          comments: dto.comments,
+        },
+        include: {
+          assignedReviewer: { select: { id: true, email: true, fullName: true } },
+          requestedBy: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      // Update version workflow status to UNDER_REVIEW
+      await tx.documentVersion.update({
+        where: { id: versionId },
+        data: {
+          workflowStatus: DocumentWorkflowStatus.UNDER_REVIEW,
+        },
+      });
+
+      return rev;
+    });
+
+    await this.auditService.logEvent(userId, 'DOCUMENT_REVIEW_REQUESTED', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId,
+      reviewId: review.id,
+      assignedReviewerId: dto.assignedReviewerId,
+    });
+
+    return this.mapReview(review);
+  }
+
+  /**
+   * Submits review decision (APPROVED, REJECTED, or CHANGES_REQUESTED)
+   */
+  async submitReviewDecision(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    reviewerId: string,
+    dto: ReviewDecisionDto,
+  ): Promise<DocumentReviewSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    // Segregation of duties: uploader cannot approve their own version
+    if (dto.decision === ReviewDecision.APPROVED && version.uploadedById === reviewerId) {
+      throw new ForbiddenException(
+        'Segregation of duties violation: Document uploader cannot approve their own version',
+      );
+    }
+
+    // Map decision to target DocumentWorkflowStatus
+    let targetWorkflowStatus: DocumentWorkflowStatus;
+    if (dto.decision === ReviewDecision.APPROVED) {
+      targetWorkflowStatus = DocumentWorkflowStatus.APPROVED;
+    } else if (dto.decision === ReviewDecision.REJECTED) {
+      targetWorkflowStatus = DocumentWorkflowStatus.REJECTED;
+    } else {
+      targetWorkflowStatus = DocumentWorkflowStatus.CHANGES_REQUESTED;
+    }
+
+    const review = await this.prisma.$transaction(async (tx) => {
+      // Find open review or create decision record
+      let activeReview = await tx.documentReview.findFirst({
+        where: {
+          versionId,
+          assignedReviewerId: reviewerId,
+          status: { in: [ReviewStatus.PENDING, ReviewStatus.IN_REVIEW] },
+        },
+      });
+
+      if (activeReview) {
+        activeReview = await tx.documentReview.update({
+          where: { id: activeReview.id },
+          data: {
+            status: dto.decision as any,
+            comments: dto.comments || activeReview.comments,
+            decisionNote: dto.decisionNote,
+            completedAt: new Date(),
+          },
+          include: {
+            assignedReviewer: { select: { id: true, email: true, fullName: true } },
+            requestedBy: { select: { id: true, email: true, fullName: true } },
+          },
+        });
+      } else {
+        activeReview = await tx.documentReview.create({
+          data: {
+            organizationId,
+            projectId,
+            documentId,
+            versionId,
+            assignedReviewerId: reviewerId,
+            requestedById: reviewerId,
+            status: dto.decision as any,
+            comments: dto.comments,
+            decisionNote: dto.decisionNote,
+            completedAt: new Date(),
+          },
+          include: {
+            assignedReviewer: { select: { id: true, email: true, fullName: true } },
+            requestedBy: { select: { id: true, email: true, fullName: true } },
+          },
+        });
+      }
+
+      // Update version workflow status
+      await tx.documentVersion.update({
+        where: { id: versionId },
+        data: {
+          workflowStatus: targetWorkflowStatus,
+          approvedAt: dto.decision === ReviewDecision.APPROVED ? new Date() : undefined,
+        },
+      });
+
+      return activeReview;
+    });
+
+    await this.auditService.logEvent(reviewerId, 'DOCUMENT_REVIEW_DECIDED', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId,
+      reviewId: review.id,
+      decision: dto.decision,
+    });
+
+    return this.mapReview(review);
+  }
+
+  /**
+   * Atomic publication: Marks new version as PUBLISHED, supersedes previous published version.
+   * Guarantees exactly one active published version per document!
+   */
+  async publishVersion(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    userId: string,
+  ): Promise<DocumentVersionSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const version = await tx.documentVersion.findFirst({
+        where: { id: versionId, documentId, projectId, organizationId },
+      });
+      if (!version) {
+        throw new NotFoundException('Document version not found');
+      }
+
+      // Idempotent: already published
+      if (version.workflowStatus === DocumentWorkflowStatus.PUBLISHED) {
+        return this.mapVersion(version);
+      }
+
+      if (
+        version.workflowStatus !== DocumentWorkflowStatus.APPROVED &&
+        version.workflowStatus !== DocumentWorkflowStatus.SUBMITTED
+      ) {
+        throw new BadRequestException(
+          `Cannot publish version in "${version.workflowStatus}" status. Version must be APPROVED or SUBMITTED.`,
+        );
+      }
+
+      const document = await tx.document.findUnique({
+        where: { id: documentId },
+      });
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
+
+      // Atomically supersede previous published version if exists
+      if (
+        document.currentPublishedVersionId &&
+        document.currentPublishedVersionId !== version.id
+      ) {
+        await tx.documentVersion.update({
+          where: { id: document.currentPublishedVersionId },
+          data: {
+            workflowStatus: DocumentWorkflowStatus.SUPERSEDED,
+            supersededAt: new Date(),
+          },
+        });
+      }
+
+      // Mark target version as PUBLISHED
+      const published = await tx.documentVersion.update({
+        where: { id: version.id },
+        data: {
+          workflowStatus: DocumentWorkflowStatus.PUBLISHED,
+          publishedAt: new Date(),
+        },
+        include: {
+          uploadedBy: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      // Update parent document pointer
+      await tx.document.update({
+        where: { id: documentId },
+        data: {
+          currentPublishedVersionId: version.id,
+          currentRevisionCode: version.revisionCode,
+        },
+      });
+
+      return this.mapVersion(published);
+    });
+
+    await this.auditService.logEvent(userId, 'DOCUMENT_VERSION_PUBLISHED', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId,
+      revisionCode: result.revisionCode,
+    });
+
+    return result;
+  }
+
+  /**
+   * Withdraws a document version
+   */
+  async withdrawVersion(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    userId: string,
+  ): Promise<DocumentVersionSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const version = await this.prisma.documentVersion.findFirst({
+      where: { id: versionId, documentId, projectId, organizationId },
+    });
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    const document = await this.prisma.document.findUnique({
+      where: { id: documentId },
+    });
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const v = await tx.documentVersion.update({
+        where: { id: versionId },
+        data: {
+          workflowStatus: DocumentWorkflowStatus.WITHDRAWN,
+          archivedAt: new Date(),
+        },
+        include: {
+          uploadedBy: { select: { id: true, email: true, fullName: true } },
+        },
+      });
+
+      // If it was the published version, reset published pointer
+      if (document && document.currentPublishedVersionId === versionId) {
+        await tx.document.update({
+          where: { id: documentId },
+          data: {
+            currentPublishedVersionId: null,
+          },
+        });
+      }
+
+      return v;
+    });
+
+    await this.auditService.logEvent(userId, 'DOCUMENT_VERSION_WITHDRAWN', undefined, {
+      organizationId,
+      projectId,
+      documentId,
+      versionId,
+      revisionCode: updated.revisionCode,
+    });
+
+    return this.mapVersion(updated);
+  }
+
+  // ==========================================
+  // Phase 3C: Dedicated Drawings Register (ES-04)
+  // ==========================================
+
+  /**
+   * Lists drawings in project with filters
+   */
+  async listDrawings(
+    organizationId: string,
+    projectId: string,
+    query: DrawingQueryDto,
+  ): Promise<{
+    items: DrawingMetadataSummary[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      organizationId,
+      projectId,
+    };
+
+    if (query.discipline) {
+      where.discipline = query.discipline;
+    }
+    if (query.drawingType) {
+      where.drawingType = query.drawingType;
+    }
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.search) {
+      where.OR = [
+        { drawingNumber: { contains: query.search, mode: 'insensitive' } },
+        { drawingTitle: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.drawingMetadata.findMany({
+        where,
+        include: {
+          document: {
+            include: {
+              currentPublishedVersion: true,
+              latestVersion: true,
+            },
+          },
+        },
+        orderBy: { drawingNumber: 'asc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.drawingMetadata.count({ where }),
+    ]);
+
+    return {
+      items: items.map((d) => this.mapDrawing(d)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
+   * Creates drawing register metadata for an existing document
+   */
+  async createDrawing(
+    organizationId: string,
+    projectId: string,
+    userId: string,
+    dto: CreateDrawingDto,
+  ): Promise<DrawingMetadataSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const doc = await this.prisma.document.findFirst({
+      where: { id: dto.documentId, projectId, organizationId },
+    });
+    if (!doc) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const existingNumber = await this.prisma.drawingMetadata.findUnique({
+      where: {
+        projectId_drawingNumber: {
+          projectId,
+          drawingNumber: dto.drawingNumber,
+        },
+      },
+    });
+    if (existingNumber) {
+      throw new ConflictException(
+        `Drawing number "${dto.drawingNumber}" already registered in this project`,
+      );
+    }
+
+    const drawing = await this.prisma.drawingMetadata.create({
+      data: {
+        organizationId,
+        projectId,
+        documentId: dto.documentId,
+        drawingNumber: dto.drawingNumber,
+        drawingTitle: dto.drawingTitle,
+        discipline: dto.discipline || (doc.discipline as any) || 'ARCHITECTURE',
+        drawingType: dto.drawingType || 'FLOOR_PLAN',
+        originator: dto.originator,
+        sheetNumber: dto.sheetNumber,
+        sheetSize: dto.sheetSize || 'A1',
+        declaredScale: dto.declaredScale,
+        issuePurpose: dto.issuePurpose || 'FOR_INFORMATION',
+        status: 'ACTIVE',
+      },
+      include: {
+        document: {
+          include: {
+            currentPublishedVersion: true,
+            latestVersion: true,
+          },
+        },
+      },
+    });
+
+    await this.auditService.logEvent(userId, 'DRAWING_REGISTERED', undefined, {
+      organizationId,
+      projectId,
+      documentId: doc.id,
+      drawingId: drawing.id,
+      drawingNumber: drawing.drawingNumber,
+    });
+
+    return this.mapDrawing(drawing);
+  }
+
+  /**
+   * Retrieves single drawing metadata with versions
+   */
+  async getDrawing(
+    organizationId: string,
+    projectId: string,
+    drawingId: string,
+  ): Promise<DrawingMetadataSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const drawing = await this.prisma.drawingMetadata.findFirst({
+      where: { id: drawingId, projectId, organizationId },
+      include: {
+        document: {
+          include: {
+            currentPublishedVersion: true,
+            latestVersion: true,
+          },
+        },
+      },
+    });
+
+    if (!drawing) {
+      throw new NotFoundException('Drawing not found');
+    }
+
+    return this.mapDrawing(drawing);
+  }
+
+  /**
+   * Updates drawing metadata
+   */
+  async updateDrawing(
+    organizationId: string,
+    projectId: string,
+    drawingId: string,
+    dto: UpdateDrawingDto,
+    userId: string,
+  ): Promise<DrawingMetadataSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const drawing = await this.prisma.drawingMetadata.findFirst({
+      where: { id: drawingId, projectId, organizationId },
+    });
+    if (!drawing) {
+      throw new NotFoundException('Drawing not found');
+    }
+
+    if (dto.drawingNumber && dto.drawingNumber !== drawing.drawingNumber) {
+      const existing = await this.prisma.drawingMetadata.findUnique({
+        where: {
+          projectId_drawingNumber: {
+            projectId,
+            drawingNumber: dto.drawingNumber,
+          },
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Drawing number "${dto.drawingNumber}" already in use in this project`,
+        );
+      }
+    }
+
+    const updated = await this.prisma.drawingMetadata.update({
+      where: { id: drawingId },
+      data: {
+        drawingNumber: dto.drawingNumber,
+        drawingTitle: dto.drawingTitle,
+        discipline: dto.discipline,
+        drawingType: dto.drawingType,
+        originator: dto.originator,
+        sheetNumber: dto.sheetNumber,
+        sheetSize: dto.sheetSize,
+        declaredScale: dto.declaredScale,
+        issuePurpose: dto.issuePurpose,
+        status: dto.status,
+      },
+      include: {
+        document: {
+          include: {
+            currentPublishedVersion: true,
+            latestVersion: true,
+          },
+        },
+      },
+    });
+
+    await this.auditService.logEvent(userId, 'DRAWING_UPDATED', undefined, {
+      organizationId,
+      projectId,
+      drawingId,
+    });
+
+    return this.mapDrawing(updated);
+  }
+
+  // ==========================================
+  // Phase 3C: Review Queue
+  // ==========================================
+
+  /**
+   * Lists reviews assigned to user or for project
+   */
+  async listReviews(
+    organizationId: string,
+    projectId: string,
+    _userId: string,
+    status?: ReviewStatus,
+  ): Promise<DocumentReviewSummary[]> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const where: any = {
+      organizationId,
+      projectId,
+    };
+
+    if (status) {
+      where.status = status;
+    }
+
+    const reviews = await this.prisma.documentReview.findMany({
+      where,
+      include: {
+        document: true,
+        version: {
+          include: {
+            uploadedBy: { select: { id: true, email: true, fullName: true } },
+          },
+        },
+        assignedReviewer: { select: { id: true, email: true, fullName: true } },
+        requestedBy: { select: { id: true, email: true, fullName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return reviews.map((r) => this.mapReview(r));
+  }
+
+  // ==========================================
+  // Phase 3C: Document Transmittals (ES-05)
+  // ==========================================
+
+  /**
+   * Creates a transmittal linking explicit DocumentVersion IDs
+   */
+  async createTransmittal(
+    organizationId: string,
+    projectId: string,
+    userId: string,
+    dto: CreateTransmittalDto,
+  ): Promise<TransmittalSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const existingRef = await this.prisma.documentTransmittal.findUnique({
+      where: {
+        projectId_reference: {
+          projectId,
+          reference: dto.reference,
+        },
+      },
+    });
+    if (existingRef) {
+      throw new ConflictException(
+        `Transmittal reference "${dto.reference}" already exists in this project`,
+      );
+    }
+
+    // Resolve version IDs and recipients from DTO or payload aliases
+    const targetVersionIds: string[] = (
+      dto.versionIds ||
+      (dto as any).items?.map((it: any) => it.documentVersionId || it.versionId || it.id) ||
+      []
+    ).filter(Boolean);
+
+    const authorizedRecipients = (dto.authorizedRecipients || (dto as any).recipients || []).map(
+      (r: any) => ({
+        name: r.name,
+        email: r.email,
+        organization: r.organization,
+        role: r.role,
+      }),
+    );
+
+    // Verify all version IDs belong to this project
+    const versions = await this.prisma.documentVersion.findMany({
+      where: {
+        id: { in: targetVersionIds },
+        projectId,
+        organizationId,
+      },
+      include: {
+        document: {
+          include: {
+            drawingMetadata: true,
+          },
+        },
+      },
+    });
+
+    if (versions.length !== targetVersionIds.length) {
+      throw new BadRequestException(
+        'One or more specified document versions do not exist or belong to another project',
+      );
+    }
+
+    const transmittal = await this.prisma.$transaction(async (tx) => {
+      const t = await tx.documentTransmittal.create({
+        data: {
+          organizationId,
+          projectId,
+          reference: dto.reference,
+          subject: dto.subject,
+          senderUserId: dto.senderUserId || userId,
+          authorizedRecipients: authorizedRecipients as any,
+          issuePurpose: dto.issuePurpose || IssuePurpose.FOR_INFORMATION,
+          issueDate: dto.issueDate ? new Date(dto.issueDate) : new Date(),
+          status: TransmittalStatus.DRAFT,
+          notes: dto.notes,
+          createdById: userId,
+        },
+      });
+
+      // Snapshot line items
+      await tx.transmittalItem.createMany({
+        data: versions.map((v) => ({
+          transmittalId: t.id,
+          documentId: v.documentId,
+          documentVersionId: v.id,
+          drawingNumber: v.document.drawingMetadata?.drawingNumber || null,
+          documentReference: v.document.reference,
+          revisionCode: v.revisionCode,
+          title: v.title,
+          fileFormat: v.fileFormat,
+          sheetSize: v.document.drawingMetadata?.sheetSize || null,
+          declaredScale: v.document.drawingMetadata?.declaredScale || null,
+        })),
+      });
+
+      return tx.documentTransmittal.findUnique({
+        where: { id: t.id },
+        include: {
+          sender: { select: { id: true, email: true, fullName: true } },
+          createdBy: { select: { id: true, email: true, fullName: true } },
+          items: true,
+        },
+      });
+    });
+
+    await this.auditService.logEvent(userId, 'TRANSMITTAL_CREATED', undefined, {
+      organizationId,
+      projectId,
+      transmittalId: transmittal!.id,
+      reference: transmittal!.reference,
+      itemCount: versions.length,
+    });
+
+    return this.mapTransmittal(transmittal);
+  }
+
+  /**
+   * Lists transmittals for project
+   */
+  async listTransmittals(
+    organizationId: string,
+    projectId: string,
+    query: TransmittalQueryDto,
+  ): Promise<{
+    items: TransmittalSummary[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      organizationId,
+      projectId,
+    };
+
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.issuePurpose) {
+      where.issuePurpose = query.issuePurpose;
+    }
+    if (query.search) {
+      where.OR = [
+        { reference: { contains: query.search, mode: 'insensitive' } },
+        { subject: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.documentTransmittal.findMany({
+        where,
+        include: {
+          sender: { select: { id: true, email: true, fullName: true } },
+          createdBy: { select: { id: true, email: true, fullName: true } },
+          _count: { select: { items: true } },
+        },
+        orderBy: { issueDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.documentTransmittal.count({ where }),
+    ]);
+
+    return {
+      items: items.map((t) => this.mapTransmittal(t)),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
+  }
+
+  /**
+   * Retrieves full transmittal with immutable line items
+   */
+  async getTransmittal(
+    organizationId: string,
+    projectId: string,
+    transmittalId: string,
+  ): Promise<TransmittalSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const transmittal = await this.prisma.documentTransmittal.findFirst({
+      where: { id: transmittalId, projectId, organizationId },
+      include: {
+        sender: { select: { id: true, email: true, fullName: true } },
+        createdBy: { select: { id: true, email: true, fullName: true } },
+        items: true,
+      },
+    });
+
+    if (!transmittal) {
+      throw new NotFoundException('Transmittal not found');
+    }
+
+    return this.mapTransmittal(transmittal);
+  }
+
+  /**
+   * Issues a transmittal (status becomes ISSUED, record becomes immutable)
+   */
+  async issueTransmittal(
+    organizationId: string,
+    projectId: string,
+    transmittalId: string,
+    userId: string,
+  ): Promise<TransmittalSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const transmittal = await this.prisma.documentTransmittal.findFirst({
+      where: { id: transmittalId, projectId, organizationId },
+    });
+    if (!transmittal) {
+      throw new NotFoundException('Transmittal not found');
+    }
+
+    if (transmittal.status !== TransmittalStatus.DRAFT) {
+      throw new BadRequestException(
+        `Cannot issue transmittal in "${transmittal.status}" status. Only DRAFT transmittals can be issued.`,
+      );
+    }
+
+    const updated = await this.prisma.documentTransmittal.update({
+      where: { id: transmittalId },
+      data: {
+        status: TransmittalStatus.ISSUED,
+        issuedAt: new Date(),
+      },
+      include: {
+        sender: { select: { id: true, email: true, fullName: true } },
+        createdBy: { select: { id: true, email: true, fullName: true } },
+        items: true,
+      },
+    });
+
+    await this.auditService.logEvent(userId, 'TRANSMITTAL_ISSUED', undefined, {
+      organizationId,
+      projectId,
+      transmittalId,
+      reference: updated.reference,
+    });
+
+    return this.mapTransmittal(updated);
+  }
+
+  /**
+   * Cancels a transmittal
+   */
+  async cancelTransmittal(
+    organizationId: string,
+    projectId: string,
+    transmittalId: string,
+    userId: string,
+  ): Promise<TransmittalSummary> {
+    await this.getVerifiedProject(organizationId, projectId);
+
+    const transmittal = await this.prisma.documentTransmittal.findFirst({
+      where: { id: transmittalId, projectId, organizationId },
+    });
+    if (!transmittal) {
+      throw new NotFoundException('Transmittal not found');
+    }
+
+    if (transmittal.status === TransmittalStatus.CANCELLED) {
+      throw new BadRequestException('Transmittal is already cancelled');
+    }
+
+    const updated = await this.prisma.documentTransmittal.update({
+      where: { id: transmittalId },
+      data: {
+        status: TransmittalStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
+      include: {
+        sender: { select: { id: true, email: true, fullName: true } },
+        createdBy: { select: { id: true, email: true, fullName: true } },
+        items: true,
+      },
+    });
+
+    await this.auditService.logEvent(userId, 'TRANSMITTAL_CANCELLED', undefined, {
+      organizationId,
+      projectId,
+      transmittalId,
+      reference: updated.reference,
+    });
+
+    return this.mapTransmittal(updated);
   }
 }

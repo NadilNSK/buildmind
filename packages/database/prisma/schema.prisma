@@ -32,6 +32,11 @@ model User {
   projectMembers          ProjectMember[]
   uploadedDocuments       Document[]               @relation("UploadedDocuments")
   uploadSessions          DocumentUploadSession[]
+  uploadedDocumentVersions DocumentVersion[]       @relation("UploadedDocumentVersions")
+  assignedReviews         DocumentReview[]         @relation("AssignedReviews")
+  requestedReviews        DocumentReview[]         @relation("RequestedReviews")
+  sentTransmittals        DocumentTransmittal[]    @relation("SentTransmittals")
+  createdTransmittals     DocumentTransmittal[]    @relation("CreatedTransmittals")
 
   @@index([email])
   @@index([role])
@@ -204,6 +209,10 @@ model Project {
   workPackages           WorkPackage[]
   documents              Document[]
   uploadSessions         DocumentUploadSession[]
+  documentVersions       DocumentVersion[]
+  drawingMetadata        DrawingMetadata[]
+  documentReviews        DocumentReview[]
+  documentTransmittals   DocumentTransmittal[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -235,6 +244,7 @@ model SpatialNode {
   parentNode   SpatialNode?  @relation("SpatialHierarchy", fields: [parentNodeId], references: [id], onDelete: Cascade)
   childNodes   SpatialNode[]         @relation("SpatialHierarchy")
   documentLinks DocumentSpatialLink[]
+  versionLinks  DocumentVersionSpatialLink[]
 
   @@index([projectId])
   @@index([parentNodeId])
@@ -264,6 +274,7 @@ model WorkPackage {
   parentPackage   WorkPackage?  @relation("WBSHierarchy", fields: [parentPackageId], references: [id], onDelete: Cascade)
   childPackages   WorkPackage[]             @relation("WBSHierarchy")
   documentLinks   DocumentWorkPackageLink[]
+  versionLinks    DocumentVersionWorkPackageLink[]
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -342,6 +353,9 @@ model Document {
   uploadStatus       String                  @default("READY") // PENDING, UPLOADING, QUARANTINED, VALIDATING, READY, REJECTED, FAILED, EXPIRED
   securityScanStatus String                  @default("CLEAN") // PENDING_SCAN, CLEAN, FLAGGED, UNSCANNED
   uploadedById       String
+  latestVersionId          String?
+  currentPublishedVersionId String?
+  currentRevisionCode      String?                 @default("01")
   archivedAt         DateTime?
   metadata           Json?
   createdAt          DateTime                @default(now())
@@ -352,6 +366,12 @@ model Document {
   spatialLinks       DocumentSpatialLink[]
   workPackageLinks   DocumentWorkPackageLink[]
   uploadSessions     DocumentUploadSession[]
+  versions                 DocumentVersion[]       @relation("DocumentVersions")
+  latestVersion            DocumentVersion?        @relation("LatestVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+  currentPublishedVersion  DocumentVersion?        @relation("PublishedVersion", fields: [currentPublishedVersionId], references: [id], onDelete: SetNull)
+  drawingMetadata          DrawingMetadata?
+  reviews                  DocumentReview[]
+  transmittalItems         TransmittalItem[]
 
   @@unique([projectId, reference])
   @@index([organizationId])
@@ -437,4 +457,222 @@ model DocumentWorkPackageLink {
   @@index([documentId])
   @@index([workPackageId])
   @@map("document_work_package_links")
+}
+
+// ==========================================
+// Phase 3C: Immutable Document Versions (ES-05 / ES-04)
+// ==========================================
+model DocumentVersion {
+  id                 String                  @id @default(uuid())
+  organizationId     String
+  projectId          String
+  documentId         String
+  versionNumber      Int                     // 1, 2, 3... sequential integer
+  revisionCode       String                  // "00", "01", "A", "P01", "C01"
+  title              String
+  description        String?
+  originalFilename   String
+  fileFormat         String                  // PDF, DWG, DXF, IFC, PNG, etc.
+  mimeType           String
+  fileSizeBytes      BigInt
+  storageObjectKey   String                  // Immutable storage reference in MinIO
+  checksumSha256     String                  // SHA-256 integrity hash
+  uploadStatus       String                  @default("READY") // PENDING, UPLOADING, READY, FAILED
+  securityScanStatus String                  @default("NOT_SCANNED") // CLEAN, PENDING_SCAN, FLAGGED, UNSCANNED, NOT_SCANNED
+  workflowStatus     String                  @default("DRAFT") // DRAFT, SUBMITTED, UNDER_REVIEW, CHANGES_REQUESTED, REJECTED, APPROVED, PUBLISHED, SUPERSEDED, WITHDRAWN
+  uploadedById       String
+  metadata           Json?                   // Change note, declared scale, custom tags
+  createdAt          DateTime                @default(now())
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  publishedAt        DateTime?
+  supersededAt       DateTime?
+  archivedAt         DateTime?
+
+  document           Document                @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy         User                    @relation("UploadedDocumentVersions", fields: [uploadedById], references: [id], onDelete: Restrict)
+  spatialLinks       DocumentVersionSpatialLink[]
+  workPackageLinks   DocumentVersionWorkPackageLink[]
+  reviews            DocumentReview[]
+  transmittalItems   TransmittalItem[]
+
+  latestForDocuments    Document[]           @relation("LatestVersion")
+  publishedForDocuments Document[]           @relation("PublishedVersion")
+
+  @@unique([documentId, versionNumber])
+  @@unique([documentId, revisionCode])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([documentId])
+  @@index([workflowStatus])
+  @@index([checksumSha256])
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@map("document_versions")
+}
+
+// ==========================================
+// Phase 3C: Drawing Register Metadata (ES-04)
+// ==========================================
+model DrawingMetadata {
+  id                 String    @id @default(uuid())
+  organizationId     String
+  projectId          String
+  documentId         String    @unique
+  drawingNumber      String    // Drawing Reference / Number, e.g. "DWG-ARCH-101"
+  drawingTitle       String
+  discipline         String    @default("ARCHITECTURE") // ARCHITECTURE, STRUCTURE, MEP, CIVIL, etc.
+  drawingType        String    @default("FLOOR_PLAN")   // SITE_PLAN, FLOOR_PLAN, ELEVATION, SECTION, DETAIL, STRUCTURAL_LAYOUT, REINFORCEMENT_DETAIL, FOUNDATION_LAYOUT, MEP_LAYOUT, GENERAL_ARRANGEMENT, OTHER
+  originator         String?   // Consultant / Architect code or name
+  sheetNumber        String?   // e.g. "A-101"
+  sheetSize          String    @default("A1")           // A0, A1, A2, A3, A4, CUSTOM
+  declaredScale      String?   // e.g. "1:100", "1:50", "AS NOTED"
+  issuePurpose       String    @default("FOR_INFORMATION") // FOR_INFORMATION, FOR_REVIEW, FOR_APPROVAL, FOR_TENDER, FOR_CONSTRUCTION, AS_BUILT
+  status             String    @default("ACTIVE")       // ACTIVE, WITHDRAWN, ARCHIVED
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  document           Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  project            Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, drawingNumber])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([discipline])
+  @@index([drawingType])
+  @@index([status])
+  @@map("drawing_metadata")
+}
+
+// ==========================================
+// Phase 3C: Document Review & Approval System (ES-05 / ES-07)
+// ==========================================
+model DocumentReview {
+  id                 String          @id @default(uuid())
+  organizationId     String
+  projectId          String
+  documentId         String
+  versionId          String
+  assignedReviewerId String
+  requestedById      String
+  status             String          @default("PENDING") // PENDING, IN_REVIEW, APPROVED, REJECTED, CHANGES_REQUESTED
+  dueAt              DateTime?
+  comments           String?
+  decisionNote       String?
+  completedAt        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  document           Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version            DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  assignedReviewer   User            @relation("AssignedReviews", fields: [assignedReviewerId], references: [id], onDelete: Restrict)
+  requestedBy        User            @relation("RequestedReviews", fields: [requestedById], references: [id], onDelete: Restrict)
+  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([documentId])
+  @@index([versionId])
+  @@index([assignedReviewerId])
+  @@index([status])
+  @@map("document_reviews")
+}
+
+// ==========================================
+// Phase 3C: Document Transmittals (ES-05 / Commercial Reporting)
+// ==========================================
+model DocumentTransmittal {
+  id                 String            @id @default(uuid())
+  organizationId     String
+  projectId          String
+  reference          String            // e.g. "TR-2026-001"
+  subject            String
+  senderUserId       String
+  authorizedRecipients Json            // [{ name, email, organization, role }]
+  issuePurpose       String            @default("FOR_INFORMATION") // IssuePurpose
+  issueDate          DateTime          @default(now())
+  status             String            @default("DRAFT") // DRAFT, ISSUED, CANCELLED
+  notes              String?
+  createdById        String
+  issuedAt           DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender             User              @relation("SentTransmittals", fields: [senderUserId], references: [id], onDelete: Restrict)
+  createdBy          User              @relation("CreatedTransmittals", fields: [createdById], references: [id], onDelete: Restrict)
+  items              TransmittalItem[]
+
+  @@unique([projectId, reference])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([status])
+  @@index([issueDate])
+  @@map("document_transmittals")
+}
+
+// ==========================================
+// Phase 3C: Transmittal Line Items (Version-Linked)
+// ==========================================
+model TransmittalItem {
+  id                 String              @id @default(uuid())
+  transmittalId      String
+  documentId         String
+  documentVersionId  String
+  drawingNumber      String?
+  documentReference  String
+  revisionCode       String
+  title              String
+  fileFormat         String
+  sheetSize          String?
+  declaredScale      String?
+  createdAt          DateTime            @default(now())
+
+  transmittal        DocumentTransmittal @relation(fields: [transmittalId], references: [id], onDelete: Cascade)
+  document           Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion    DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([transmittalId, documentVersionId])
+  @@index([transmittalId])
+  @@index([documentId])
+  @@index([documentVersionId])
+  @@map("transmittal_items")
+}
+
+// ==========================================
+// Phase 3C: Version-Level Spatial Association
+// ==========================================
+model DocumentVersionSpatialLink {
+  id            String          @id @default(uuid())
+  versionId     String
+  spatialNodeId String
+  createdAt     DateTime        @default(now())
+
+  version       DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  spatialNode   SpatialNode     @relation(fields: [spatialNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, spatialNodeId])
+  @@index([versionId])
+  @@index([spatialNodeId])
+  @@map("document_version_spatial_links")
+}
+
+// ==========================================
+// Phase 3C: Version-Level Work Breakdown Association
+// ==========================================
+model DocumentVersionWorkPackageLink {
+  id            String          @id @default(uuid())
+  versionId     String
+  workPackageId String
+  createdAt     DateTime        @default(now())
+
+  version       DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  workPackage   WorkPackage     @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, workPackageId])
+  @@index([versionId])
+  @@index([workPackageId])
+  @@map("document_version_work_package_links")
 }

@@ -30,7 +30,10 @@ import {
   UpdateDocumentDto,
   UpdateDocumentLinksDto,
   DocumentQueryDto,
-} from './dto/document.dto';
+  CreateVersionDto,
+  SubmitReviewDto,
+  ReviewDecisionDto,
+} from './dto';
 
 @Controller('projects/:projectId/documents')
 @UseInterceptors(TransformInterceptor)
@@ -230,5 +233,235 @@ export class DocumentsController {
     @Param('documentId') documentId: string,
   ) {
     return this.documentsService.getDownloadUrl(org.id, projectId, documentId);
+  }
+
+  // ==========================================
+  // 5. Phase 3C: Document Versions & Comparison
+  // ==========================================
+
+  @Post(':documentId/versions')
+  @HttpCode(HttpStatus.CREATED)
+  @RequireTenant()
+  @RequirePermissions('documents.versions.upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async createVersion(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: CreateVersionDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.documentsService.createVersion(
+      org.id,
+      projectId,
+      documentId,
+      user.id,
+      body,
+      file?.buffer,
+      file ? { originalname: file.originalname, mimetype: file.mimetype } : undefined,
+    );
+  }
+
+  @Get(':documentId/versions')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.view')
+  async listVersions(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.documentsService.listVersions(org.id, projectId, documentId);
+  }
+
+  @Get(':documentId/versions-compare')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.view')
+  async compareVersions(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Query('fromVersionId') fromVersionId: string,
+    @Query('toVersionId') toVersionId: string,
+  ) {
+    if (!fromVersionId || !toVersionId) {
+      throw new BadRequestException('Both fromVersionId and toVersionId query parameters are required');
+    }
+    return this.documentsService.compareVersions(
+      org.id,
+      projectId,
+      documentId,
+      fromVersionId,
+      toVersionId,
+    );
+  }
+
+  @Get(':documentId/versions/compare')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.view')
+  async compareVersionsNested(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Query('fromVersionId') fromVersionId: string,
+    @Query('toVersionId') toVersionId: string,
+  ) {
+    if (!fromVersionId || !toVersionId) {
+      throw new BadRequestException('Both fromVersionId and toVersionId query parameters are required');
+    }
+    return this.documentsService.compareVersions(
+      org.id,
+      projectId,
+      documentId,
+      fromVersionId,
+      toVersionId,
+    );
+  }
+
+  @Get(':documentId/versions/:versionId')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.view')
+  async getVersion(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.documentsService.getVersion(org.id, projectId, documentId, versionId);
+  }
+
+  @Get(':documentId/versions/:versionId/download')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.download')
+  async downloadVersionStream(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @Res() res: Response,
+  ) {
+    const { stream, filename, mimeType, fileSizeBytes, checksumSha256, revisionCode } =
+      await this.documentsService.getVersionDownloadStream(
+        org.id,
+        projectId,
+        documentId,
+        versionId,
+      );
+
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', fileSizeBytes);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Checksum-SHA256', checksumSha256);
+    res.setHeader('X-Revision-Code', revisionCode);
+
+    stream.pipe(res);
+  }
+
+  @Get(':documentId/versions/:versionId/download-url')
+  @RequireTenant()
+  @RequirePermissions('documents.versions.download')
+  async getVersionDownloadUrl(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.documentsService.getVersionDownloadUrl(org.id, projectId, documentId, versionId);
+  }
+
+  // ==========================================
+  // 6. Phase 3C: Workflow State Machine Transitions
+  // ==========================================
+
+  @Post(':documentId/versions/:versionId/submit')
+  @HttpCode(HttpStatus.OK)
+  @RequireTenant()
+  @RequirePermissions('documents.submit')
+  async submitVersion(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.submitVersion(org.id, projectId, documentId, versionId, user.id);
+  }
+
+  @Post(':documentId/versions/:versionId/request-review')
+  @HttpCode(HttpStatus.OK)
+  @RequireTenant()
+  @RequirePermissions('documents.submit')
+  async requestReview(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: SubmitReviewDto,
+  ) {
+    return this.documentsService.requestReview(
+      org.id,
+      projectId,
+      documentId,
+      versionId,
+      user.id,
+      body,
+    );
+  }
+
+  @Post(':documentId/versions/:versionId/review-decision')
+  @HttpCode(HttpStatus.OK)
+  @RequireTenant()
+  @RequirePermissions('documents.approve')
+  async submitReviewDecision(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: ReviewDecisionDto,
+  ) {
+    return this.documentsService.submitReviewDecision(
+      org.id,
+      projectId,
+      documentId,
+      versionId,
+      user.id,
+      body,
+    );
+  }
+
+  @Post(':documentId/versions/:versionId/publish')
+  @HttpCode(HttpStatus.OK)
+  @RequireTenant()
+  @RequirePermissions('documents.publish')
+  async publishVersion(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.publishVersion(org.id, projectId, documentId, versionId, user.id);
+  }
+
+  @Post(':documentId/versions/:versionId/withdraw')
+  @HttpCode(HttpStatus.OK)
+  @RequireTenant()
+  @RequirePermissions('documents.withdraw')
+  async withdrawVersion(
+    @ActiveOrg() org: Organization,
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.documentsService.withdrawVersion(
+      org.id,
+      projectId,
+      documentId,
+      versionId,
+      user.id,
+    );
   }
 }

@@ -93,6 +93,19 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * Generates permanent immutable document version storage object key
+   */
+  getDocumentVersionKey(
+    organizationId: string,
+    projectId: string,
+    documentId: string,
+    versionNumber: number,
+    sanitizedFilename: string,
+  ): string {
+    return `organizations/${organizationId}/projects/${projectId}/documents/${documentId}/versions/v${versionNumber}_${sanitizedFilename}`;
+  }
+
+  /**
    * Computes SHA-256 hash of a buffer
    */
   computeSha256(buffer: Buffer): string {
