@@ -1,6 +1,7 @@
 # BuildMind AI v5.0 — Local Development & Infrastructure Setup Guide
 
 ## 1. Verified Host Environment
+
 - **Operating System**: Microsoft Windows 11 Pro (Build 26300, 64-bit)
 - **Processor**: 12th Gen Intel(R) Core(TM) i7-12650H (10 Cores, 16 Logical Processors)
 - **Memory**: 31.71 GB RAM
@@ -17,7 +18,9 @@
 ## 2. Docker Desktop Installation (Windows Specifics)
 
 ### 2.1 Verified Installer Status
+
 The official Docker Desktop installer has been downloaded and cryptographically verified:
+
 - **Local Path**: `D:\installer_cache\Docker Desktop Installer.exe`
 - **File Size**: 595.06 MB (623,969,712 bytes)
 - **Digital Signature**: **Valid** (Digitally signed by `CN=Docker Inc, O=Docker Inc, L=Palo Alto, S=California, C=US`)
@@ -25,7 +28,9 @@ The official Docker Desktop installer has been downloaded and cryptographically 
 - **SHA-256 Hash**: `A5E299131C9C53D60F3F752B162078945EB5FAF6EEDCF0BE20A214C6E6CEA444`
 
 ### 2.2 Administrator Elevation Requirement
+
 Docker Desktop requires Windows administrative privileges during initial setup to:
+
 1. Register the Windows system service (`com.docker.service`).
 2. Create and configure the local security group `docker-users`.
 3. Configure the WSL 2 network integration adapters.
@@ -36,40 +41,26 @@ Because non-interactive background terminals cannot approve UAC dialogs, **the u
 # Open an Elevated (Run as Administrator) PowerShell window and execute:
 Start-Process -Wait -FilePath "D:\installer_cache\Docker Desktop Installer.exe" -ArgumentList "install", "--quiet", "--accept-license"
 ```
+
 *Alternatively, navigate to `D:\installer_cache` in Windows File Explorer, right-click `Docker Desktop Installer.exe`, and select **Run as administrator**.*
 
 Once installed, launch Docker Desktop from the Windows Start menu and ensure WSL 2 backend is selected in Docker settings.
 
 ---
 
-## 3. Automated Windows Development Startup (`dev-start.ps1`)
-
-An enterprise-grade PowerShell automation script is provided at the repository root to validate the developer toolchain, inspect Windows WinNAT port exclusions, guarantee container health, and display active service endpoints.
-
-```powershell
-# Interactive startup & dashboard
-.\dev-start.ps1
-
-# Pre-flight validation only
-.\dev-start.ps1 -VerifyOnly
-
-# Start all monorepo development services in parallel
-.\dev-start.ps1 -StartAll
-```
-
----
-
-## 4. Infrastructure Management Commands
+## 3. Infrastructure Management Commands
 
 Once Docker Desktop is running:
 
 ### 3.1 Start Services
+
 ```powershell
 # Start PostgreSQL 16, Redis 7, and MinIO in the background
 docker compose -f infrastructure/docker-compose.yml up -d
 ```
 
 ### 3.2 Check Service Status & Health
+
 ```powershell
 # Check running containers and healthcheck statuses
 docker compose -f infrastructure/docker-compose.yml ps
@@ -79,6 +70,7 @@ docker compose -f infrastructure/docker-compose.yml logs -f
 ```
 
 ### 3.3 Stop Services
+
 ```powershell
 # Stop services while preserving all data volumes
 docker compose -f infrastructure/docker-compose.yml stop
@@ -110,6 +102,7 @@ pnpm --filter @buildmind/database exec prisma migrate dev --name init_phase1_mod
 ## 5. Running Application Services
 
 ### 5.1 NestJS Backend API (Port 4001)
+
 ```powershell
 $env:PATH = "C:\Users\user\AppData\Roaming\npm;$env:PATH"
 pnpm --filter @buildmind/api run start:dev
@@ -118,6 +111,7 @@ pnpm --filter @buildmind/api run start:dev
 ```
 
 ### 5.2 Next.js Web Frontend (Port 3000)
+
 ```powershell
 $env:PATH = "C:\Users\user\AppData\Roaming\npm;$env:PATH"
 pnpm --filter @buildmind/web run dev
@@ -126,6 +120,7 @@ pnpm --filter @buildmind/web run dev
 ```
 
 ### 5.3 FastAPI AI Worker Service (Port 8000)
+
 ```powershell
 cd services/ai-worker
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -156,12 +151,12 @@ cd services/ai-worker && python tests/smoke_test.py
 pnpm --filter @buildmind/web run build
 ```
 
-
 ---
 
 ## 7. Phase 2B Authentication Frontend Verification & Testing
 
 ### 7.1 Running the Frontend E2E & Browser Auth Test Suite
+
 The automated Phase 2B test suite verifies all 17 security and UI requirements against a live PostgreSQL database and NestJS backend instance:
 
 ```powershell
@@ -170,6 +165,7 @@ pnpm --filter @buildmind/web test
 ```
 
 ### 7.2 Verified Authentication Flows & Endpoints
+
 - **Sign In**: `/login` (supports remembered email, HttpOnly cookie generation, sanitized `returnUrl` redirection)
 - **Sign Up**: `/register` (Zod schema validation, live password requirements indicator, email verification token creation)
 - **Password Recovery**: `/forgot-password` and `/reset-password?token=...`

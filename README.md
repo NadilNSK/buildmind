@@ -36,6 +36,7 @@ buildmind/
 ## Approved Enterprise Scope (24 Capabilities)
 
 BuildMind AI strictly maintains bounded engineering to deliver high reliability and deterministic accuracy:
+
 - **12 Quantity Surveying Modules**: Takeoff (QS-01), Cost Estimation (QS-02), BOQ Generation (QS-03), Budget Planning (QS-04), Tender Management (QS-05), Contract Administration (QS-06), Procurement (QS-07), Cost Control (QS-08), Interim Valuations (QS-09), Variations (QS-10), Risk & Value Engineering (QS-11), Final Accounts (QS-12).
 - **7 Shared Systems**: Measurement Standards (ES-01), Specifications (ES-02), Contract Rules (ES-03), Drawing Revision Management (ES-04), Document Control (ES-05), Commercial Reporting (ES-06), QA & Audit (ES-07).
 - **1 Selective Scope Engine**: Smart Selective QS (SSQ-01).
@@ -48,22 +49,26 @@ BuildMind AI strictly maintains bounded engineering to deliver high reliability 
 ## Quickstart
 
 ### Prerequisites
+
 - Node.js >= 20.0.0
 - pnpm >= 9.0.0
 - Python >= 3.11
 - Docker & Docker Compose (optional, for local DB stack)
 
 ### 1. Install Dependencies
+
 ```bash
 pnpm install
 ```
 
 ### 2. Configure Environment
+
 ```bash
 cp .env.example .env
 ```
 
 ### 3. Build & Verify
+
 ```bash
 # Type check all packages & apps
 pnpm type-check
@@ -77,21 +82,8 @@ pnpm build
 
 ### 4. Start Development Services
 
-#### Automated Windows Startup (Recommended)
-```powershell
-# Validates toolchain, WinNAT ports, Docker infrastructure, and launches service URL dashboard
-.\dev-start.ps1
-
-# To verify environment and infrastructure only:
-.\dev-start.ps1 -VerifyOnly
-
-# To launch all services concurrently:
-.\dev-start.ps1 -StartAll
-```
-
-#### Manual Service Launch
 ```bash
-# Start NestJS API (port 4001 - Note: port 4000 is reserved by Windows WinNAT)
+# Start NestJS API (port 4001)
 pnpm dev:api
 
 # Start Next.js Frontend (port 3000)
@@ -101,29 +93,24 @@ pnpm dev:web
 cd services/ai-worker && uvicorn app.main:app --port 8000 --reload
 ```
 
-### 5. Acceptance & Integration Testing
-```powershell
-# 16-Scenario Playwright End-to-End Acceptance Suite
-node apps/web/test/playwright-e2e.test.cjs
-
-# Backend Jest E2E Suite (41 tests)
-pnpm --filter @buildmind/api run test:e2e
-
-# Frontend Auth & RBAC Suites (34 tests)
-node apps/web/test/frontend-auth.test.cjs
-node apps/web/test/frontend-org-rbac.test.cjs
-
-# AI Worker Smoke Suite (4 tests)
-python services/ai-worker/tests/smoke_test.py
-```
-
 ---
 
-## Phase 1 Deliverables Summary
-- **Working Monorepo**: pnpm workspaces with `@buildmind/*` packages.
-- **Enterprise Design System**: Navy (`#0B1220`) / Teal (`#14B8A6`) accessible theme.
-- **Responsive Shell & Routes**: 17 dedicated route views labeled with architectural boundaries and "Coming Soon" notices (no fake data).
-- **NestJS API**: Versioned `/api/v1` routes, structured error filter, public `/api/v1/health` endpoint.
-- **FastAPI AI Worker**: Public `/health` endpoint and strictly bounded placeholder endpoints for computer vision.
-- **PostgreSQL / Prisma**: Minimal schema for `Organization`, `User`, `Membership`, and `Project` with UUIDs, indexes, and multi-tenant scoping.
-- **Docker Infrastructure**: `docker-compose.yml` for PostgreSQL 16, Redis 7, and MinIO S3 object storage.
+## Current Development Status & Deliverables
+
+### Phase 1: Foundation Infrastructure
+- Working Monorepo with pnpm workspaces and `@buildmind/*` packages.
+- Enterprise Design System: Navy (`#0B1220`) / Teal (`#14B8A6`) accessible theme.
+- Docker Infrastructure for PostgreSQL 16, Redis 7, and MinIO S3 object storage.
+
+### Phase 2: Enterprise Authentication & Multi-Tenant RBAC
+- **Phase 2A & 2B:** Argon2id password hashing, rotating JWT refresh tokens, HttpOnly cookies, CSRF protection, and responsive frontend auth flows.
+- **Phase 2C:** Multi-tenant organization switching, invitation tokens (SHA-256), and 9-role RBAC permission matrix.
+- **Phase 2D:** Security hardening, integration audits, rate limiting, and 16-scenario Playwright suite.
+
+### Phase 3A: Construction Project Workspace & Data Foundation
+- **Extended Construction Project Model:** 19 fields including project types, stakeholders, milestone dates, standards (SLS 573 / CESMM4 / NRM2), contract conditions (CIDA / FIDIC), and exact decimal valuation (`Decimal(15, 2)`).
+- **Spatial Breakdown Structure (SBS):** Self-referencing recursive physical hierarchy (`SpatialNode`: Site -> Building -> Block -> Level -> Zone -> Room) with cycle detection and cross-project validation.
+- **Work Breakdown Structure (WBS):** Self-referencing recursive trade hierarchy (`WorkPackage`) with code uniqueness per project and cycle prevention.
+- **Project Workspace UI:** Next.js 15 App Router interface featuring Project Header, persistent sub-nav tabs, Overview Dashboard (4 KPI cards, live audit feed, planned roadmap), Spatial Breakdown UI, Work Breakdown UI, Settings UI, and Team Access UI.
+- **Automated Verification:** 28 backend integration tests (`project-workspace.e2e-spec.ts`) and 13 Playwright browser acceptance scenarios (`playwright-phase3a.test.cjs`) passing 100% (145 total automated checks across the monorepo).
+

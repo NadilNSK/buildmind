@@ -27,7 +27,7 @@ $RootPath = $PSScriptRoot
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
 Write-Host "   BuildMind AI v5.0 — Windows Development Environment Startup   " -ForegroundColor Cyan
-Write-Host "   Enterprise AI Quantity Surveying & Commercial Management      " -ForegroundColor Cyan
+Write-Host "   Enterprise AI Quantity Surveying and Commercial Management      " -ForegroundColor Cyan
 Write-Host "==================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -108,7 +108,7 @@ try {
 # 2. Windows WinNAT Port Reservation Audit
 # -------------------------------------------------------------
 Write-Host ""
-Write-Step "Auditing Windows ports & WinNAT reservations"
+Write-Step "Auditing Windows ports and WinNAT reservations"
 
 # Check port 4000 (Windows WinNAT reserved port warning)
 try {

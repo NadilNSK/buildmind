@@ -169,30 +169,103 @@ model Membership {
 // Project Context (Commercial & QS scope root)
 // ==========================================
 model Project {
-  id                  String       @id @default(uuid())
-  organizationId      String
-  code                String       // e.g. "PRJ-CMB-001"
-  name                String
-  description         String?
-  country             String       @default("LK")
-  standard            String       @default("SLS_573") // SLS_573, CESMM4, NRM2, SMM7, POMI
-  contractStandard    String?      // CIDA_SBD_01, CIDA_SBD_02, FIDIC_RED, etc.
-  status              String       @default("PLANNING") // PLANNING, TENDERING, ACTIVE, COMMERCIAL_CLOSEOUT, FINAL_ACCOUNT, ARCHIVED
-  currency            String       @default("LKR")
-  createdById         String
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  id                     String          @id @default(uuid())
+  organizationId         String
+  code                   String          // e.g. "PRJ-CMB-001"
+  name                   String
+  description            String?
+  projectType            String          @default("COMMERCIAL") // ProjectType enum: RESIDENTIAL, COMMERCIAL, INDUSTRIAL, INFRASTRUCTURE, etc.
+  status                 String          @default("PLANNING")   // ProjectStatus enum: PLANNING, DESIGN, TENDERING, PRE_CONSTRUCTION, UNDER_CONSTRUCTION, etc.
+  location               String?         // City / site address / location details
+  country                String          @default("LK")
+  clientName             String?         // Employer / Client organization name
+  contractorName         String?         // Main Contractor organization name
+  consultantName         String?         // Lead Consultant / QS Consultant name
+  projectManager         String?         // Project Manager reference / contact
+  startDate              DateTime?
+  expectedCompletionDate DateTime?
+  actualCompletionDate   DateTime?
+  estimatedContractValue Decimal?        @db.Decimal(15, 2)     // Exact monetary amount
+  currency               String          @default("LKR")        // CurrencyCode
+  standard               String          @default("SLS_573")    // MeasurementStandard
+  contractStandard       String?                                // ContractStandard: CIDA_SBD_01, CIDA_SBD_02, FIDIC_RED, etc.
+  measurementUnitSystem  String          @default("METRIC")     // UnitSystem: METRIC, IMPERIAL
+  createdById            String
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  archivedAt             DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User         @relation("CreatedProjects", fields: [createdById], references: [id], onDelete: Restrict)
-  members      ProjectMember[]
+  organization           Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy              User            @relation("CreatedProjects", fields: [createdById], references: [id], onDelete: Restrict)
+  members                ProjectMember[]
+  spatialNodes           SpatialNode[]
+  workPackages           WorkPackage[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
   @@index([code])
+  @@index([projectType])
   @@index([status])
   @@index([standard])
   @@map("projects")
+}
+
+// ==========================================
+// Construction Project Spatial Hierarchy
+// ==========================================
+model SpatialNode {
+  id           String        @id @default(uuid())
+  projectId    String
+  parentNodeId String?
+  nodeType     String        @default("BUILDING") // SITE, BUILDING, BLOCK, LEVEL, ZONE, ROOM, OTHER
+  name         String
+  code         String?       // e.g. "BLD-A", "L01", "RM-101"
+  description  String?
+  displayOrder Int           @default(0)
+  status       String        @default("ACTIVE")   // ACTIVE, ARCHIVED
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentNode   SpatialNode?  @relation("SpatialHierarchy", fields: [parentNodeId], references: [id], onDelete: Cascade)
+  childNodes   SpatialNode[] @relation("SpatialHierarchy")
+
+  @@index([projectId])
+  @@index([parentNodeId])
+  @@index([nodeType])
+  @@index([status])
+  @@index([displayOrder])
+  @@map("spatial_nodes")
+}
+
+// ==========================================
+// Project Work Breakdown Structure (WBS)
+// ==========================================
+model WorkPackage {
+  id              String        @id @default(uuid())
+  projectId       String
+  parentPackageId String?
+  code            String        // Package code, e.g. "WP-01", "WP-01.01"
+  name            String
+  description     String?
+  displayOrder    Int           @default(0)
+  status          String        @default("ACTIVE") // ACTIVE, ARCHIVED
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentPackage   WorkPackage?  @relation("WBSHierarchy", fields: [parentPackageId], references: [id], onDelete: Cascade)
+  childPackages   WorkPackage[] @relation("WBSHierarchy")
+
+  @@unique([projectId, code])
+  @@index([projectId])
+  @@index([parentPackageId])
+  @@index([code])
+  @@index([status])
+  @@index([displayOrder])
+  @@map("work_packages")
 }
 
 // ==========================================

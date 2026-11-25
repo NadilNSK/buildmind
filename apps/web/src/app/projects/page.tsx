@@ -16,6 +16,10 @@ import {
   Clock,
   Loader2,
   AlertCircle,
+  Network,
+  ListTree,
+  MapPin,
+  Coins,
 } from 'lucide-react';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { useOrganization } from '@/context/organization-context';
@@ -114,7 +118,7 @@ export default function ProjectsPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by code or name..."
+              placeholder="Search by code, name, or location..."
               className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#070C16] border border-[#1E2E4E] text-[#F8FAFC] text-xs focus:outline-none focus:border-[#14B8A6]"
             />
           </form>
@@ -128,10 +132,15 @@ export default function ProjectsPage() {
             >
               <option value="ALL">All Statuses</option>
               <option value={ProjectStatus.PLANNING}>Planning</option>
+              <option value={ProjectStatus.DESIGN}>Design</option>
               <option value={ProjectStatus.TENDERING}>Tendering</option>
+              <option value={ProjectStatus.PRE_CONSTRUCTION}>Pre-Construction</option>
+              <option value={ProjectStatus.UNDER_CONSTRUCTION}>Under Construction</option>
               <option value={ProjectStatus.ACTIVE}>Active</option>
+              <option value={ProjectStatus.ON_HOLD}>On Hold</option>
               <option value={ProjectStatus.COMMERCIAL_CLOSEOUT}>Commercial Closeout</option>
               <option value={ProjectStatus.FINAL_ACCOUNT}>Final Account</option>
+              <option value={ProjectStatus.COMPLETED}>Completed</option>
               <option value={ProjectStatus.ARCHIVED}>Archived</option>
             </select>
           </div>
@@ -145,47 +154,87 @@ export default function ProjectsPage() {
           </div>
         ) : projects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {projects.map((p: any) => (
-              <Link
-                key={p.id}
-                href={`/projects/${p.id}`}
-                className="group p-5 rounded-xl bg-[#111C35]/80 hover:bg-[#111C35] border border-[#1E2E4E] hover:border-[#14B8A6]/60 transition-all shadow-md flex flex-col justify-between"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-mono bg-[#14B8A6]/15 text-[#14B8A6] px-2 py-0.5 rounded border border-[#14B8A6]/30">
-                        {p.code}
+            {projects.map((p: any) => {
+              const formattedValue = p.estimatedContractValue
+                ? `${p.currency || 'LKR'} ${Number(p.estimatedContractValue).toLocaleString(undefined, {
+                    maximumFractionDigits: 0,
+                  })}`
+                : null;
+
+              return (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  className="group p-5 rounded-xl bg-[#111C35]/80 hover:bg-[#111C35] border border-[#1E2E4E] hover:border-[#14B8A6]/60 transition-all shadow-md flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono bg-[#14B8A6]/15 text-[#14B8A6] px-2 py-0.5 rounded border border-[#14B8A6]/30 font-semibold">
+                            {p.code}
+                          </span>
+                          {p.projectType && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#070C16] text-[#94A3B8] border border-[#1E2E4E]">
+                              {p.projectType.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="text-sm font-bold text-[#F8FAFC] group-hover:text-[#14B8A6] transition-colors">
+                          {p.name}
+                        </h2>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1E2E4E] text-[#CBD5E1] shrink-0">
+                        {p.status}
                       </span>
-                      <h2 className="text-sm font-bold text-[#F8FAFC] mt-1.5 group-hover:text-[#14B8A6] transition-colors">
-                        {p.name}
-                      </h2>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1E2E4E] text-[#CBD5E1]">
-                      {p.status}
-                    </span>
+
+                    {p.location && (
+                      <div className="flex items-center gap-1 text-[11px] text-[#94A3B8]">
+                        <MapPin className="w-3 h-3 text-[#14B8A6] shrink-0" />
+                        <span>
+                          {p.location}
+                          {p.country ? `, ${p.country}` : ''}
+                        </span>
+                      </div>
+                    )}
+
+                    {p.description && (
+                      <p className="text-xs text-[#94A3B8] line-clamp-2">{p.description}</p>
+                    )}
+
+                    {formattedValue && (
+                      <div className="flex items-center gap-1 text-xs font-mono text-[#10B981]">
+                        <Coins className="w-3.5 h-3.5 shrink-0" />
+                        <span>{formattedValue}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {p.description && (
-                    <p className="text-xs text-[#94A3B8] line-clamp-2">{p.description}</p>
-                  )}
-                </div>
+                  <div className="pt-4 mt-3 border-t border-[#1E2E4E]/60 flex items-center justify-between text-xs text-[#64748B]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-[#94A3B8]">
+                        Std: <strong className="text-[#CBD5E1] font-mono">{p.measurementStandard}</strong>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-[#94A3B8]" title="Spatial Nodes">
+                        <Network className="w-3 h-3 text-[#06B6D4]" />
+                        <span>{p.spatialNodeCount ?? 0}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-[#94A3B8]" title="Work Packages">
+                        <ListTree className="w-3 h-3 text-[#3B82F6]" />
+                        <span>{p.workPackageCount ?? 0}</span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-[#94A3B8]" title="Team Members">
+                        <Users className="w-3 h-3 text-[#14B8A6]" />
+                        <span>{p.memberCount ?? 1}</span>
+                      </span>
+                    </div>
 
-                <div className="pt-4 mt-3 border-t border-[#1E2E4E]/60 flex items-center justify-between text-xs text-[#64748B]">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-[#94A3B8]">
-                      Method: <strong className="text-[#CBD5E1] font-mono">{p.measurementStandard}</strong>
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] text-[#94A3B8]">
-                      <Users className="w-3 h-3 text-[#14B8A6]" />
-                      <span>{p.memberCount ?? 1}</span>
-                    </span>
+                    <span className="text-[11px] font-mono text-[#CBD5E1]">{p.currency}</span>
                   </div>
-
-                  <span className="text-[11px] font-mono text-[#CBD5E1]">{p.currency}</span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="p-12 rounded-xl bg-[#070C16] border border-[#16223B] text-center space-y-4">

@@ -10,9 +10,12 @@
 export enum MeasurementStandard {
   SLS_573 = 'SLS_573', // Sri Lanka Standard Method of Measurement (Building Works)
   CESMM4 = 'CESMM4',   // Civil Engineering Standard Method of Measurement
+  NRM1 = 'NRM1',       // RICS New Rules of Measurement 1 (Order of cost estimating)
   NRM2 = 'NRM2',       // RICS New Rules of Measurement 2 (Detailed measurement)
+  NRM3 = 'NRM3',       // RICS New Rules of Measurement 3 (Maintenance & lifecycle)
   SMM7 = 'SMM7',       // Standard Method of Measurement 7 (Legacy UK/Commonwealth)
   POMI = 'POMI',       // Principles of Measurement International
+  CUSTOM = 'CUSTOM',   // Custom or Other Client Specification Standard
 }
 
 export enum ContractStandard {
@@ -26,11 +29,45 @@ export enum ContractStandard {
 
 export enum ProjectStatus {
   PLANNING = 'PLANNING',
+  DESIGN = 'DESIGN',
   TENDERING = 'TENDERING',
-  ACTIVE = 'ACTIVE',
+  PRE_CONSTRUCTION = 'PRE_CONSTRUCTION',
+  UNDER_CONSTRUCTION = 'UNDER_CONSTRUCTION',
+  ACTIVE = 'ACTIVE', // Alias for backward compatibility
+  ON_HOLD = 'ON_HOLD',
   COMMERCIAL_CLOSEOUT = 'COMMERCIAL_CLOSEOUT',
   FINAL_ACCOUNT = 'FINAL_ACCOUNT',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
   ARCHIVED = 'ARCHIVED',
+}
+
+export enum ProjectType {
+  RESIDENTIAL = 'RESIDENTIAL',
+  COMMERCIAL = 'COMMERCIAL',
+  INDUSTRIAL = 'INDUSTRIAL',
+  INFRASTRUCTURE = 'INFRASTRUCTURE',
+  EDUCATIONAL = 'EDUCATIONAL',
+  HEALTHCARE = 'HEALTHCARE',
+  HOSPITALITY = 'HOSPITALITY',
+  MIXED_USE = 'MIXED_USE',
+  RENOVATION = 'RENOVATION',
+  OTHER = 'OTHER',
+}
+
+export enum UnitSystem {
+  METRIC = 'METRIC',
+  IMPERIAL = 'IMPERIAL',
+}
+
+export enum SpatialNodeType {
+  SITE = 'SITE',
+  BUILDING = 'BUILDING',
+  BLOCK = 'BLOCK',
+  LEVEL = 'LEVEL',
+  ZONE = 'ZONE',
+  ROOM = 'ROOM',
+  OTHER = 'OTHER',
 }
 
 export enum CurrencyCode {
@@ -103,6 +140,12 @@ export type PermissionKey =
   | 'projects.update'
   | 'projects.delete'
   | 'projects.manage_access'
+  | 'projects.settings.view'
+  | 'projects.settings.edit'
+  | 'projects.spatial.view'
+  | 'projects.spatial.manage'
+  | 'projects.wbs.view'
+  | 'projects.wbs.manage'
   | 'drawings.view'
   | 'drawings.upload'
   | 'drawings.update'
@@ -165,6 +208,12 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
   'projects.update',
   'projects.delete',
   'projects.manage_access',
+  'projects.settings.view',
+  'projects.settings.edit',
+  'projects.spatial.view',
+  'projects.spatial.manage',
+  'projects.wbs.view',
+  'projects.wbs.manage',
   'drawings.view',
   'drawings.upload',
   'drawings.update',
@@ -227,6 +276,12 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.view',
     'projects.update',
     'projects.manage_access',
+    'projects.settings.view',
+    'projects.settings.edit',
+    'projects.spatial.view',
+    'projects.spatial.manage',
+    'projects.wbs.view',
+    'projects.wbs.manage',
     'drawings.view',
     'drawings.upload',
     'takeoff.view',
@@ -262,6 +317,12 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'organization.view',
     'projects.view',
     'projects.update',
+    'projects.settings.view',
+    'projects.settings.edit',
+    'projects.spatial.view',
+    'projects.spatial.manage',
+    'projects.wbs.view',
+    'projects.wbs.manage',
     'drawings.view',
     'drawings.upload',
     'drawings.update',
@@ -296,6 +357,11 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
   [OrganizationRole.QS_ENGINEER]: [
     'organization.view',
     'projects.view',
+    'projects.settings.view',
+    'projects.spatial.view',
+    'projects.spatial.manage',
+    'projects.wbs.view',
+    'projects.wbs.manage',
     'drawings.view',
     'drawings.upload',
     'takeoff.view',
@@ -321,6 +387,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
   [OrganizationRole.ESTIMATOR]: [
     'organization.view',
     'projects.view',
+    'projects.settings.view',
+    'projects.spatial.view',
+    'projects.wbs.view',
     'drawings.view',
     'takeoff.view',
     'takeoff.create',
@@ -341,6 +410,12 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.view',
     'projects.update',
     'projects.manage_access',
+    'projects.settings.view',
+    'projects.settings.edit',
+    'projects.spatial.view',
+    'projects.spatial.manage',
+    'projects.wbs.view',
+    'projects.wbs.manage',
     'drawings.view',
     'drawings.upload',
     'drawings.update',
@@ -364,6 +439,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
   [OrganizationRole.AUDITOR]: [
     'organization.view',
     'projects.view',
+    'projects.settings.view',
+    'projects.spatial.view',
+    'projects.wbs.view',
     'drawings.view',
     'takeoff.view',
     'estimates.view',
@@ -382,6 +460,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
   [OrganizationRole.VIEWER]: [
     'organization.view',
     'projects.view',
+    'projects.settings.view',
+    'projects.spatial.view',
+    'projects.wbs.view',
     'drawings.view',
     'reports.view',
   ],
@@ -543,8 +624,19 @@ export interface CreateProjectDto {
   code: string;
   name: string;
   description?: string;
+  projectType?: ProjectType;
   country?: string;
+  location?: string;
+  clientName?: string;
+  contractorName?: string;
+  consultantName?: string;
+  projectManager?: string;
+  startDate?: string;
+  expectedCompletionDate?: string;
+  actualCompletionDate?: string;
+  estimatedContractValue?: number | string | null;
   measurementStandard?: MeasurementStandard;
+  measurementUnitSystem?: UnitSystem;
   contractStandard?: ContractStandard;
   currency?: CurrencyCode;
   status?: ProjectStatus;
@@ -553,9 +645,20 @@ export interface CreateProjectDto {
 export interface UpdateProjectDto {
   name?: string;
   description?: string;
+  projectType?: ProjectType;
   country?: string;
+  location?: string;
+  clientName?: string;
+  contractorName?: string;
+  consultantName?: string;
+  projectManager?: string;
+  startDate?: string | null;
+  expectedCompletionDate?: string | null;
+  actualCompletionDate?: string | null;
+  estimatedContractValue?: number | string | null;
   measurementStandard?: MeasurementStandard;
-  contractStandard?: ContractStandard;
+  measurementUnitSystem?: UnitSystem;
+  contractStandard?: ContractStandard | null;
   currency?: CurrencyCode;
   status?: ProjectStatus;
 }
@@ -570,15 +673,168 @@ export interface ProjectSummary {
   organizationId: string;
   code: string;
   name: string;
-  description?: string;
-  country: string;
-  measurementStandard: MeasurementStandard;
-  contractStandard?: ContractStandard;
+  description?: string | null;
+  projectType: ProjectType;
   status: ProjectStatus;
+  location?: string | null;
+  country: string;
+  clientName?: string | null;
+  contractorName?: string | null;
+  consultantName?: string | null;
+  projectManager?: string | null;
+  startDate?: string | null;
+  expectedCompletionDate?: string | null;
+  actualCompletionDate?: string | null;
+  estimatedContractValue?: string | number | null;
   currency: CurrencyCode;
+  measurementStandard: MeasurementStandard;
+  measurementUnitSystem: UnitSystem;
+  contractStandard?: ContractStandard | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  createdBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  memberCount?: number;
+  spatialNodeCount?: number;
+  workPackageCount?: number;
+}
+
+export interface SpatialNodeSummary {
+  id: string;
+  projectId: string;
+  parentNodeId?: string | null;
+  nodeType: SpatialNodeType;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  displayOrder: number;
+  status: 'ACTIVE' | 'ARCHIVED';
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  updatedAt: string;
+  children?: SpatialNodeSummary[];
+}
+
+export interface CreateSpatialNodeDto {
+  parentNodeId?: string | null;
+  nodeType?: SpatialNodeType;
+  name: string;
+  code?: string;
+  description?: string;
+  displayOrder?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateSpatialNodeDto {
+  parentNodeId?: string | null;
+  nodeType?: SpatialNodeType;
+  name?: string;
+  code?: string;
+  description?: string;
+  displayOrder?: number;
+  status?: 'ACTIVE' | 'ARCHIVED';
+  metadata?: Record<string, any>;
+}
+
+export interface WorkPackageSummary {
+  id: string;
+  projectId: string;
+  parentPackageId?: string | null;
+  code: string;
+  name: string;
+  description?: string | null;
+  displayOrder: number;
+  status: 'ACTIVE' | 'ARCHIVED';
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  updatedAt: string;
+  children?: WorkPackageSummary[];
+}
+
+export interface CreateWorkPackageDto {
+  parentPackageId?: string | null;
+  code: string;
+  name: string;
+  description?: string;
+  displayOrder?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateWorkPackageDto {
+  parentPackageId?: string | null;
+  code?: string;
+  name?: string;
+  description?: string;
+  displayOrder?: number;
+  status?: 'ACTIVE' | 'ARCHIVED';
+  metadata?: Record<string, any>;
+}
+
+export interface ProjectSettingsDto {
+  id: string;
+  projectId: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  projectType: ProjectType;
+  status: ProjectStatus;
+  location?: string | null;
+  country: string;
+  clientName?: string | null;
+  contractorName?: string | null;
+  consultantName?: string | null;
+  projectManager?: string | null;
+  startDate?: string | null;
+  expectedCompletionDate?: string | null;
+  actualCompletionDate?: string | null;
+  estimatedContractValue?: string | number | null;
+  currency: CurrencyCode;
+  measurementStandard: MeasurementStandard;
+  measurementUnitSystem: UnitSystem;
+  contractStandard?: ContractStandard | null;
+  updatedAt: string;
+}
+
+export interface UpdateProjectSettingsDto {
+  name?: string;
+  description?: string;
+  projectType?: ProjectType;
+  status?: ProjectStatus;
+  location?: string;
+  country?: string;
+  clientName?: string;
+  contractorName?: string;
+  consultantName?: string;
+  projectManager?: string;
+  startDate?: string | null;
+  expectedCompletionDate?: string | null;
+  actualCompletionDate?: string | null;
+  estimatedContractValue?: string | number | null;
+  currency?: CurrencyCode;
+  measurementStandard?: MeasurementStandard;
+  measurementUnitSystem?: UnitSystem;
+  contractStandard?: ContractStandard | null;
+}
+
+export interface ProjectOverviewSummary {
+  project: ProjectSummary;
+  stats: {
+    totalMembers: number;
+    totalSpatialNodes: number;
+    totalWorkPackages: number;
+  };
+  recentActivities: Array<{
+    id: string;
+    eventType: string;
+    actorEmail?: string;
+    description: string;
+    timestamp: string;
+  }>;
 }
 
 // ==========================================
