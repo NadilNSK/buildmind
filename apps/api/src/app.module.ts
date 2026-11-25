@@ -7,6 +7,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { QsModule } from './modules/qs/qs.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
@@ -28,6 +30,8 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
     HealthModule,
     OrganizationsModule,
     ProjectsModule,
+    StorageModule,
+    DocumentsModule,
     QsModule,
   ],
   providers: [

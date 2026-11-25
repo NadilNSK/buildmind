@@ -30,6 +30,8 @@ model User {
   auditEvents             AuthAuditEvent[]
   sentInvitations         OrganizationInvitation[] @relation("SentInvitations")
   projectMembers          ProjectMember[]
+  uploadedDocuments       Document[]               @relation("UploadedDocuments")
+  uploadSessions          DocumentUploadSession[]
 
   @@index([email])
   @@index([role])
@@ -200,6 +202,8 @@ model Project {
   members                ProjectMember[]
   spatialNodes           SpatialNode[]
   workPackages           WorkPackage[]
+  documents              Document[]
+  uploadSessions         DocumentUploadSession[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -229,7 +233,8 @@ model SpatialNode {
 
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parentNode   SpatialNode?  @relation("SpatialHierarchy", fields: [parentNodeId], references: [id], onDelete: Cascade)
-  childNodes   SpatialNode[] @relation("SpatialHierarchy")
+  childNodes   SpatialNode[]         @relation("SpatialHierarchy")
+  documentLinks DocumentSpatialLink[]
 
   @@index([projectId])
   @@index([parentNodeId])
@@ -257,7 +262,8 @@ model WorkPackage {
 
   project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parentPackage   WorkPackage?  @relation("WBSHierarchy", fields: [parentPackageId], references: [id], onDelete: Cascade)
-  childPackages   WorkPackage[] @relation("WBSHierarchy")
+  childPackages   WorkPackage[]             @relation("WBSHierarchy")
+  documentLinks   DocumentWorkPackageLink[]
 
   @@unique([projectId, code])
   @@index([projectId])
@@ -313,4 +319,122 @@ model ProjectMember {
   @@index([projectId])
   @@index([userId])
   @@map("project_members")
+}
+
+// ==========================================
+// Construction Project Document Control (ES-05 / Storage Foundation)
+// ==========================================
+model Document {
+  id                 String                  @id @default(uuid())
+  organizationId     String
+  projectId          String
+  reference          String                  // Document Reference / Code, unique in project (e.g. "DOC-ARCH-001")
+  title              String
+  description        String?
+  category           String                  // DocumentCategory: ARCHITECTURAL_DRAWING, SPECIFICATION, etc.
+  discipline         String                  @default("GENERAL") // DocumentDiscipline: ARCHITECTURE, STRUCTURE, etc.
+  originalFilename   String
+  fileFormat         String                  // PDF, DOCX, XLSX, CSV, TXT, IFC, DWG, DXF, PNG, JPG, etc.
+  mimeType           String
+  fileSizeBytes      BigInt
+  storageObjectKey   String                  // Server-generated key: organizations/.../documents/.../objectId
+  checksumSha256     String                  // Cryptographic SHA-256 integrity hash
+  uploadStatus       String                  @default("READY") // PENDING, UPLOADING, QUARANTINED, VALIDATING, READY, REJECTED, FAILED, EXPIRED
+  securityScanStatus String                  @default("CLEAN") // PENDING_SCAN, CLEAN, FLAGGED, UNSCANNED
+  uploadedById       String
+  archivedAt         DateTime?
+  metadata           Json?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  project            Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy         User                    @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Restrict)
+  spatialLinks       DocumentSpatialLink[]
+  workPackageLinks   DocumentWorkPackageLink[]
+  uploadSessions     DocumentUploadSession[]
+
+  @@unique([projectId, reference])
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([category])
+  @@index([discipline])
+  @@index([fileFormat])
+  @@index([uploadStatus])
+  @@index([securityScanStatus])
+  @@index([uploadedById])
+  @@index([createdAt])
+  @@map("documents")
+}
+
+// ==========================================
+// Document Upload Session (Lifecycle & Quarantine)
+// ==========================================
+model DocumentUploadSession {
+  id                 String    @id @default(uuid())
+  organizationId     String
+  projectId          String
+  userId             String
+  documentId         String?   // Linked once document record is created
+  declaredFilename   String
+  declaredMimeType   String
+  declaredSizeBytes  BigInt
+  category           String
+  discipline         String    @default("GENERAL")
+  storageKey         String    // Quarantine path in MinIO
+  status             String    @default("PENDING") // PENDING, UPLOADING, QUARANTINED, VALIDATING, READY, REJECTED, FAILED, EXPIRED
+  checksumSha256     String?
+  actualSizeBytes    BigInt?
+  metadata           Json?     // Declared spatial/WBS links, client tags
+  expiresAt          DateTime
+  completedAt        DateTime?
+  errorMessage       String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  project            Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document           Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("document_upload_sessions")
+}
+
+// ==========================================
+// Document - Spatial Breakdown Association
+// ==========================================
+model DocumentSpatialLink {
+  id            String      @id @default(uuid())
+  documentId    String
+  spatialNodeId String
+  createdAt     DateTime    @default(now())
+
+  document      Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  spatialNode   SpatialNode @relation(fields: [spatialNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, spatialNodeId])
+  @@index([documentId])
+  @@index([spatialNodeId])
+  @@map("document_spatial_links")
+}
+
+// ==========================================
+// Document - Work Breakdown Association
+// ==========================================
+model DocumentWorkPackageLink {
+  id            String      @id @default(uuid())
+  documentId    String
+  workPackageId String
+  createdAt     DateTime    @default(now())
+
+  document      Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  workPackage   WorkPackage @relation(fields: [workPackageId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, workPackageId])
+  @@index([documentId])
+  @@index([workPackageId])
+  @@map("document_work_package_links")
 }

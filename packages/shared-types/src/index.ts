@@ -70,6 +70,78 @@ export enum SpatialNodeType {
   OTHER = 'OTHER',
 }
 
+// ==========================================
+// 1b. Document Management Enums (ES-05 / Phase 3B)
+// ==========================================
+
+export enum DocumentCategory {
+  ARCHITECTURAL_DRAWING = 'ARCHITECTURAL_DRAWING',
+  STRUCTURAL_DRAWING = 'STRUCTURAL_DRAWING',
+  CIVIL_DRAWING = 'CIVIL_DRAWING',
+  MECHANICAL_DRAWING = 'MECHANICAL_DRAWING',
+  ELECTRICAL_DRAWING = 'ELECTRICAL_DRAWING',
+  PLUMBING_DRAWING = 'PLUMBING_DRAWING',
+  FIRE_PROTECTION_DRAWING = 'FIRE_PROTECTION_DRAWING',
+  LANDSCAPE_DRAWING = 'LANDSCAPE_DRAWING',
+  BIM_MODEL = 'BIM_MODEL',
+  SPECIFICATION = 'SPECIFICATION',
+  BILL_OF_QUANTITIES = 'BILL_OF_QUANTITIES',
+  CONTRACT = 'CONTRACT',
+  TENDER_DOCUMENT = 'TENDER_DOCUMENT',
+  COST_SCHEDULE = 'COST_SCHEDULE',
+  SITE_PHOTOGRAPH = 'SITE_PHOTOGRAPH',
+  REPORT = 'REPORT',
+  CORRESPONDENCE = 'CORRESPONDENCE',
+  OTHER = 'OTHER',
+}
+
+export enum DocumentDiscipline {
+  ARCHITECTURE = 'ARCHITECTURE',
+  STRUCTURE = 'STRUCTURE',
+  CIVIL = 'CIVIL',
+  MECHANICAL = 'MECHANICAL',
+  ELECTRICAL = 'ELECTRICAL',
+  PLUMBING = 'PLUMBING',
+  FIRE_PROTECTION = 'FIRE_PROTECTION',
+  LANDSCAPE = 'LANDSCAPE',
+  QUANTITY_SURVEYING = 'QUANTITY_SURVEYING',
+  COMMERCIAL = 'COMMERCIAL',
+  GENERAL = 'GENERAL',
+}
+
+export enum DocumentFileFormat {
+  PDF = 'PDF',
+  DOCX = 'DOCX',
+  XLSX = 'XLSX',
+  CSV = 'CSV',
+  TXT = 'TXT',
+  IFC = 'IFC',
+  DWG = 'DWG',
+  DXF = 'DXF',
+  PNG = 'PNG',
+  JPG = 'JPG',
+  JPEG = 'JPEG',
+  TIFF = 'TIFF',
+}
+
+export enum DocumentUploadStatus {
+  PENDING = 'PENDING',
+  UPLOADING = 'UPLOADING',
+  QUARANTINED = 'QUARANTINED',
+  VALIDATING = 'VALIDATING',
+  READY = 'READY',
+  REJECTED = 'REJECTED',
+  FAILED = 'FAILED',
+  EXPIRED = 'EXPIRED',
+}
+
+export enum DocumentScanStatus {
+  CLEAN = 'CLEAN',
+  PENDING_SCAN = 'PENDING_SCAN',
+  FLAGGED = 'FLAGGED',
+  UNSCANNED = 'UNSCANNED',
+}
+
 export enum CurrencyCode {
   LKR = 'LKR', // Sri Lankan Rupee (Primary target)
   USD = 'USD', // US Dollar
@@ -146,6 +218,14 @@ export type PermissionKey =
   | 'projects.spatial.manage'
   | 'projects.wbs.view'
   | 'projects.wbs.manage'
+  | 'documents.view'
+  | 'documents.upload'
+  | 'documents.download'
+  | 'documents.update'
+  | 'documents.archive'
+  | 'documents.restore'
+  | 'documents.link'
+  | 'documents.storage_usage'
   | 'drawings.view'
   | 'drawings.upload'
   | 'drawings.update'
@@ -214,6 +294,14 @@ export const ALL_PERMISSIONS: PermissionKey[] = [
   'projects.spatial.manage',
   'projects.wbs.view',
   'projects.wbs.manage',
+  'documents.view',
+  'documents.upload',
+  'documents.download',
+  'documents.update',
+  'documents.archive',
+  'documents.restore',
+  'documents.link',
+  'documents.storage_usage',
   'drawings.view',
   'drawings.upload',
   'drawings.update',
@@ -282,6 +370,14 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.spatial.manage',
     'projects.wbs.view',
     'projects.wbs.manage',
+    'documents.view',
+    'documents.upload',
+    'documents.download',
+    'documents.update',
+    'documents.archive',
+    'documents.restore',
+    'documents.link',
+    'documents.storage_usage',
     'drawings.view',
     'drawings.upload',
     'takeoff.view',
@@ -323,6 +419,14 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.spatial.manage',
     'projects.wbs.view',
     'projects.wbs.manage',
+    'documents.view',
+    'documents.upload',
+    'documents.download',
+    'documents.update',
+    'documents.archive',
+    'documents.restore',
+    'documents.link',
+    'documents.storage_usage',
     'drawings.view',
     'drawings.upload',
     'drawings.update',
@@ -362,6 +466,12 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.spatial.manage',
     'projects.wbs.view',
     'projects.wbs.manage',
+    'documents.view',
+    'documents.upload',
+    'documents.download',
+    'documents.update',
+    'documents.link',
+    'documents.storage_usage',
     'drawings.view',
     'drawings.upload',
     'takeoff.view',
@@ -390,6 +500,10 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.settings.view',
     'projects.spatial.view',
     'projects.wbs.view',
+    'documents.view',
+    'documents.upload',
+    'documents.download',
+    'documents.link',
     'drawings.view',
     'takeoff.view',
     'takeoff.create',
@@ -416,6 +530,14 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.spatial.manage',
     'projects.wbs.view',
     'projects.wbs.manage',
+    'documents.view',
+    'documents.upload',
+    'documents.download',
+    'documents.update',
+    'documents.archive',
+    'documents.restore',
+    'documents.link',
+    'documents.storage_usage',
     'drawings.view',
     'drawings.upload',
     'drawings.update',
@@ -442,6 +564,9 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.settings.view',
     'projects.spatial.view',
     'projects.wbs.view',
+    'documents.view',
+    'documents.download',
+    'documents.storage_usage',
     'drawings.view',
     'takeoff.view',
     'estimates.view',
@@ -463,6 +588,8 @@ export const ROLE_PERMISSIONS: Record<OrganizationRole, readonly PermissionKey[]
     'projects.settings.view',
     'projects.spatial.view',
     'projects.wbs.view',
+    'documents.view',
+    'documents.download',
     'drawings.view',
     'reports.view',
   ],
@@ -834,6 +961,145 @@ export interface ProjectOverviewSummary {
     actorEmail?: string;
     description: string;
     timestamp: string;
+  }>;
+}
+
+// ==========================================
+// 2c. Document Management DTOs & Contracts
+// ==========================================
+
+export interface DocumentSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  reference: string;
+  title: string;
+  description?: string | null;
+  category: DocumentCategory | string;
+  discipline: DocumentDiscipline | string;
+  originalFilename: string;
+  fileFormat: DocumentFileFormat | string;
+  mimeType: string;
+  fileSizeBytes: string;
+  storageObjectKey: string;
+  checksumSha256: string;
+  uploadStatus: DocumentUploadStatus | string;
+  securityScanStatus: DocumentScanStatus | string;
+  uploadedById: string;
+  archivedAt?: string | null;
+  metadata?: Record<string, any> | null;
+  createdAt: string;
+  updatedAt: string;
+  uploadedBy?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  spatialLinkCount?: number;
+  workPackageLinkCount?: number;
+}
+
+export interface DocumentDetails extends DocumentSummary {
+  spatialLinks: Array<{
+    id: string;
+    spatialNodeId: string;
+    spatialNode: {
+      id: string;
+      name: string;
+      code?: string | null;
+      nodeType: string;
+    };
+  }>;
+  workPackageLinks: Array<{
+    id: string;
+    workPackageId: string;
+    workPackage: {
+      id: string;
+      name: string;
+      code: string;
+    };
+  }>;
+}
+
+export interface DocumentUploadSessionSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  userId: string;
+  documentId?: string | null;
+  declaredFilename: string;
+  declaredMimeType: string;
+  declaredSizeBytes: string;
+  category: string;
+  discipline: string;
+  storageKey: string;
+  status: string;
+  checksumSha256?: string | null;
+  actualSizeBytes?: string | null;
+  metadata?: Record<string, any> | null;
+  expiresAt: string;
+  completedAt?: string | null;
+  errorMessage?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUploadSessionDto {
+  declaredFilename: string;
+  declaredMimeType: string;
+  declaredSizeBytes: number | string;
+  category: DocumentCategory | string;
+  discipline?: DocumentDiscipline | string;
+  reference?: string;
+  title?: string;
+  description?: string;
+  spatialNodeIds?: string[];
+  workPackageIds?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface CompleteUploadSessionDto {
+  sessionId: string;
+  checksumSha256: string;
+  actualSizeBytes?: number | string;
+  reference?: string;
+  title?: string;
+  description?: string;
+  category?: DocumentCategory | string;
+  discipline?: DocumentDiscipline | string;
+  spatialNodeIds?: string[];
+  workPackageIds?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateDocumentDto {
+  title?: string;
+  reference?: string;
+  description?: string | null;
+  category?: DocumentCategory | string;
+  discipline?: DocumentDiscipline | string;
+  metadata?: Record<string, any> | null;
+}
+
+export interface UpdateDocumentLinksDto {
+  spatialNodeIds?: string[];
+  workPackageIds?: string[];
+}
+
+export interface StorageUsageSummary {
+  totalBytes: string;
+  totalBytesFormatted: string;
+  totalDocuments: number;
+  totalUploadSessions: number;
+  byCategory: Array<{
+    category: string;
+    count: number;
+    bytes: string;
+  }>;
+  byFormat: Array<{
+    format: string;
+    count: number;
+    bytes: string;
   }>;
 }
 

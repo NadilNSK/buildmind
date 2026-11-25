@@ -12,6 +12,11 @@ import {
   MembershipStatus,
   InvitationStatus,
   OrganizationStatus,
+  DocumentCategory,
+  DocumentDiscipline,
+  DocumentFileFormat,
+  DocumentUploadStatus,
+  DocumentScanStatus,
 } from '@buildmind/shared-types';
 
 // ==========================================
@@ -214,6 +219,93 @@ export const updateWorkPackageSchema = createWorkPackageSchema.partial().extend(
 export const updateProjectSettingsSchema = updateProjectSchema;
 
 // ==========================================
+// 4e. Document Management Schemas (ES-05 / Phase 3B)
+// ==========================================
+
+export const documentCategorySchema = z.nativeEnum(DocumentCategory);
+export const documentDisciplineSchema = z.nativeEnum(DocumentDiscipline);
+export const documentFileFormatSchema = z.nativeEnum(DocumentFileFormat);
+export const documentUploadStatusSchema = z.nativeEnum(DocumentUploadStatus);
+export const documentScanStatusSchema = z.nativeEnum(DocumentScanStatus);
+
+export const createUploadSessionSchema = z.object({
+  declaredFilename: z
+    .string()
+    .min(1, 'Declared filename is required')
+    .max(255, 'Filename cannot exceed 255 characters'),
+  declaredMimeType: z.string().min(3).max(128),
+  declaredSizeBytes: z
+    .number()
+    .int()
+    .positive('Declared file size must be positive')
+    .max(500 * 1024 * 1024, 'File size cannot exceed 500MB'),
+  category: z.nativeEnum(DocumentCategory),
+  discipline: z.nativeEnum(DocumentDiscipline).default(DocumentDiscipline.GENERAL),
+  reference: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[A-Za-z0-9_.\-]+$/, 'Reference must be alphanumeric with dots, dashes or underscores')
+    .optional(),
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  spatialNodeIds: z.array(uuidSchema).optional(),
+  workPackageIds: z.array(uuidSchema).optional(),
+  metadata: z.record(z.any()).optional().nullable(),
+});
+
+export const completeUploadSessionSchema = z.object({
+  sessionId: uuidSchema,
+  checksumSha256: z
+    .string()
+    .regex(/^[a-fA-F0-9]{64}$/, 'Must be a valid 64-character SHA-256 hexadecimal hash'),
+  actualSizeBytes: z.number().int().positive().optional(),
+  reference: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[A-Za-z0-9_.\-]+$/, 'Reference must be alphanumeric with dots, dashes or underscores')
+    .optional(),
+  title: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  category: z.nativeEnum(DocumentCategory).optional(),
+  discipline: z.nativeEnum(DocumentDiscipline).optional(),
+  spatialNodeIds: z.array(uuidSchema).optional(),
+  workPackageIds: z.array(uuidSchema).optional(),
+  metadata: z.record(z.any()).optional().nullable(),
+});
+
+export const updateDocumentSchema = z.object({
+  title: z.string().min(1, 'Title cannot be empty').max(255).optional(),
+  reference: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[A-Za-z0-9_.\-]+$/, 'Reference must be alphanumeric with dots, dashes or underscores')
+    .optional(),
+  description: z.string().max(2000).optional().nullable(),
+  category: z.nativeEnum(DocumentCategory).optional(),
+  discipline: z.nativeEnum(DocumentDiscipline).optional(),
+  metadata: z.record(z.any()).optional().nullable(),
+});
+
+export const updateDocumentLinksSchema = z.object({
+  spatialNodeIds: z.array(uuidSchema).optional(),
+  workPackageIds: z.array(uuidSchema).optional(),
+});
+
+export const documentQuerySchema = paginationQuerySchema.extend({
+  search: z.string().optional(),
+  category: z.nativeEnum(DocumentCategory).optional(),
+  discipline: z.nativeEnum(DocumentDiscipline).optional(),
+  fileFormat: z.nativeEnum(DocumentFileFormat).optional(),
+  uploadStatus: z.nativeEnum(DocumentUploadStatus).optional(),
+  spatialNodeId: uuidSchema.optional(),
+  workPackageId: uuidSchema.optional(),
+  includeArchived: z.coerce.boolean().default(false),
+});
+
+// ==========================================
 // 5. Schema Inferred Types
 // ==========================================
 
@@ -242,3 +334,8 @@ export type CreateWorkPackageInput = z.infer<typeof createWorkPackageSchema>;
 export type UpdateWorkPackageInput = z.infer<typeof updateWorkPackageSchema>;
 export type UpdateProjectSettingsInput = z.infer<typeof updateProjectSettingsSchema>;
 export type PaginationQueryInput = z.infer<typeof paginationQuerySchema>;
+export type CreateUploadSessionInput = z.infer<typeof createUploadSessionSchema>;
+export type CompleteUploadSessionInput = z.infer<typeof completeUploadSessionSchema>;
+export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
+export type UpdateDocumentLinksInput = z.infer<typeof updateDocumentLinksSchema>;
+export type DocumentQueryInput = z.infer<typeof documentQuerySchema>;

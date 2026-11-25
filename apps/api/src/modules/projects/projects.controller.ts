@@ -174,7 +174,7 @@ export class ProjectsController {
   // Spatial Breakdown Structure (SBS)
   // ==========================================
 
-  @Get(':id/spatial-nodes')
+  @Get([':id/spatial-nodes', ':id/spatial'])
   @RequireTenant()
   @RequirePermissions('projects.spatial.view')
   async listSpatialNodes(

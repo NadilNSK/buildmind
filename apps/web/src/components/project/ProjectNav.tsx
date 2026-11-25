@@ -9,6 +9,7 @@ import {
   ListTree,
   Settings,
   Users,
+  Files,
 } from 'lucide-react';
 
 interface ProjectNavProps {
@@ -16,6 +17,7 @@ interface ProjectNavProps {
   memberCount?: number;
   spatialNodeCount?: number;
   workPackageCount?: number;
+  documentCount?: number;
 }
 
 export function ProjectNav({
@@ -23,6 +25,7 @@ export function ProjectNav({
   memberCount,
   spatialNodeCount,
   workPackageCount,
+  documentCount,
 }: ProjectNavProps) {
   const pathname = usePathname();
 
@@ -32,6 +35,13 @@ export function ProjectNav({
       href: `/projects/${projectId}`,
       icon: LayoutDashboard,
       exact: true,
+    },
+    {
+      label: 'Documents',
+      href: `/projects/${projectId}/documents`,
+      icon: Files,
+      count: documentCount,
+      exact: false,
     },
     {
       label: 'Spatial Breakdown (SBS)',

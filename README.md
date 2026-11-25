@@ -114,3 +114,12 @@ cd services/ai-worker && uvicorn app.main:app --port 8000 --reload
 - **Project Workspace UI:** Next.js 15 App Router interface featuring Project Header, persistent sub-nav tabs, Overview Dashboard (4 KPI cards, live audit feed, planned roadmap), Spatial Breakdown UI, Work Breakdown UI, Settings UI, and Team Access UI.
 - **Automated Verification:** 28 backend integration tests (`project-workspace.e2e-spec.ts`) and 13 Playwright browser acceptance scenarios (`playwright-phase3a.test.cjs`) passing 100% (145 total automated checks across the monorepo).
 
+### Phase 3B: Secure Construction Document Uploads & Storage Foundation
+- **Object Storage Infrastructure:** MinIO S3-compatible private buckets (`buildmind-documents`, `buildmind-drawings`) with zero public access.
+- **Zero-Trust Quarantine Lifecycle:** Upload session initiation, streaming multipart upload to quarantine storage key, magic byte & header verification, client/server SHA-256 cryptographic verification, transactional promotion to permanent storage, and automatic quarantine cleanup.
+- **True Format Verification:** Binary inspection for PDF, DWG, DXF, IFC, PNG, JPG, TIFF, DOCX, XLSX, CSV, and TXT with strict size limit enforcement (max 500 MB).
+- **Physical & Trade Hierarchy Linking:** `DocumentSpatialLink` (SBS) and `DocumentWorkPackageLink` (WBS) with strict cross-project IDOR rejection.
+- **Document Control Workspace UI:** Next.js 15 interface (`/projects/[projectId]/documents`) featuring live storage utilization KPI cards, multi-facet filtering (search, category, discipline, format, archived), `DocumentUploadModal` with drag-and-drop progress tracking, and `DocumentDetailsDrawer` with cryptographic hash verification, metadata editing, and hierarchy link management.
+- **Automated Verification:** 20 backend integration tests (`document-workspace.e2e-spec.ts`) and 18 Playwright browser acceptance scenarios (`playwright-phase3b.test.cjs`) passing 100% with zero regressions.
+
+
